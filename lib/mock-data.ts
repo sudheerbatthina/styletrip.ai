@@ -99,3 +99,15 @@ export const mockBoardDataUrl =
   Buffer.from(
     `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="#f8f3ea"/><text x="64" y="92" font-family="Arial" font-size="48" font-weight="700" fill="#123d52">StyleTrip AI</text><text x="64" y="136" font-family="Arial" font-size="24" fill="#51616b">Mock 1:1 AI outfit inspiration board</text><g font-family="Arial">${Array.from({ length: 12 }).map((_, i) => { const col = i % 4; const row = Math.floor(i / 4); const x = 64 + col * 230; const y = 180 + row * 245; return `<rect x="${x}" y="${y}" width="190" height="200" rx="8" fill="${i % 2 ? "#dfe9df" : "#eadccb"}" stroke="#c5b9a8"/><text x="${x + 18}" y="${y + 38}" font-size="28" font-weight="700" fill="#16394a">${i + 1}</text><text x="${x + 18}" y="${y + 76}" font-size="18" font-weight="700" fill="#16394a">Outfit ${i + 1}</text><text x="${x + 18}" y="${y + 110}" font-size="14" fill="#43515a">camp shirt</text><text x="${x + 18}" y="${y + 132}" font-size="14" fill="#43515a">straight pants</text><text x="${x + 18}" y="${y + 154}" font-size="14" fill="#43515a">clean sneakers</text>`; }).join("")}</g><rect x="64" y="920" width="896" height="48" rx="8" fill="#123d52"/><text x="88" y="952" font-family="Arial" font-size="18" fill="#fff">Best colors: cream, olive, rust, mocha, indigo | Accessories: sunglasses, watch, chain, crossbody</text></svg>`,
   ).toString("base64");
+
+export function buildMockOutfitImage(styleTitle: string, index: number) {
+  const fills = ["#eadccb", "#dfe9df", "#d8e4ea", "#eee4c8", "#e6d7d7"];
+  const fill = fills[index % fills.length];
+
+  return (
+    "data:image/svg+xml;base64," +
+    Buffer.from(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1280" viewBox="0 0 1024 1280"><rect width="1024" height="1280" fill="${fill}"/><rect x="132" y="116" width="760" height="1048" rx="34" fill="#f8f3ea" stroke="#c5b9a8" stroke-width="4"/><circle cx="512" cy="320" r="92" fill="#b98765"/><rect x="380" y="430" width="264" height="320" rx="36" fill="#123d52"/><rect x="340" y="740" width="120" height="330" rx="28" fill="#5d6f57"/><rect x="564" y="740" width="120" height="330" rx="28" fill="#5d6f57"/><rect x="300" y="1070" width="180" height="48" rx="24" fill="#2a2f35"/><rect x="544" y="1070" width="180" height="48" rx="24" fill="#2a2f35"/><text x="512" y="1220" text-anchor="middle" font-family="Arial" font-size="38" font-weight="700" fill="#123d52">${index + 1}. ${styleTitle.replace(/&/g, "and")}</text></svg>`,
+    ).toString("base64")
+  );
+}

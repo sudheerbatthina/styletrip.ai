@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { BoardBuilder } from "@/components/board/BoardBuilder";
 import type {
   ImageInput,
+  OutfitImage,
   Preferences,
   StyleAnalysis,
   StyleCardData,
@@ -15,6 +16,7 @@ export function NewBoardClient({ persistEnabled }: { persistEnabled: boolean }) 
   async function saveBoard(payload: {
     image: ImageInput;
     boardImage: string;
+    outfitImages: OutfitImage[];
     analysis: StyleAnalysis;
     selectedStyles: StyleCardData[];
     preferences: Preferences;

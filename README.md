@@ -1,6 +1,6 @@
 # StyleTrip AI
 
-StyleTrip AI is a saved-board web app for travel outfit inspiration. Users can sign up, create AI outfit boards from a full-body photo and trip preferences, save generated boards, revisit them from a dashboard, download them, and delete them.
+StyleTrip AI is a saved-board web app for travel outfit inspiration. Users can sign up with email/password, create AI outfit boards from a full-body photo and trip preferences, save generated boards, revisit them from a dashboard, download them, and delete them.
 
 The app keeps the original mock-mode generation flow working, so UI development does not require OpenAI or Supabase.
 
@@ -15,6 +15,20 @@ The app keeps the original mock-mode generation flow working, so UI development 
 - Zod validation
 - OpenAI API
 - Supabase Auth, Postgres, and Storage
+- Frontend-rendered fashion boards exported as PNG
+
+## Board Generation Strategy
+
+The app does not rely on AI to generate the full final collage with readable text. Instead:
+
+1. The API generates individual outfit images for the selected style cards.
+2. The frontend renders the final fashion board with React/CSS.
+3. Outfit titles, item lists, colors, footwear, accessories, and labels are real frontend text.
+4. The rendered board is exported/downloaded as PNG.
+
+This gives cleaner typography, better layout control, and reliable support for `1:1`, `4:5`, and `16:9`.
+
+For MVP, regeneration regenerates the full board. The code includes TODOs for future single-style regeneration and replacing one outfit image while keeping the rest of the board unchanged.
 
 ## Routes
 
@@ -67,7 +81,7 @@ Set:
 NEXT_PUBLIC_MOCK_MODE=true
 ```
 
-Mock mode returns sample photo analysis, 24 style cards, and a mock generated board without calling OpenAI. If Supabase is configured, mock-generated boards can still be saved to the database and storage. If Supabase is not configured, the builder still works but saved boards/auth are disabled with visible warnings.
+Mock mode returns sample photo analysis, 24 style cards, and mock generated outfit images without calling OpenAI. The final board is still rendered in the frontend. If Supabase is configured, mock-generated boards can be saved to the database and storage after login. If Supabase is not configured, the builder still works but saved boards/auth are disabled with visible warnings.
 
 To use real OpenAI calls:
 
@@ -130,10 +144,17 @@ If bucket creation is blocked in your Supabase environment, create them manually
 
 - `POST /api/analyze-photo`
 - `POST /api/generate-style-options`
+- `POST /api/generate-outfit-images`
 - `POST /api/generate-style-board`
 - `POST /api/refine-board`
 - `POST /api/boards/save`
 - `DELETE /api/boards/[id]`
+
+`generate-style-board` and `refine-board` remain available for compatibility, but the current UI uses `generate-outfit-images` plus the frontend board renderer.
+
+## Auth Notes
+
+Email/password auth is implemented for MVP. Google Sign-In is intentionally not implemented yet. The auth form is structured around Supabase auth so Google OAuth can be added later with `supabase.auth.signInWithOAuth`.
 
 ## Future Improvements
 

@@ -71,6 +71,16 @@ export const styleOptionsResponseSchema = z.object({
   styles: z.array(styleCardSchema).length(24),
 });
 
+export const outfitImageSchema = z.object({
+  styleId: z.string(),
+  image: z.string().min(20),
+  promptUsed: z.string().optional(),
+});
+
+export const outfitImagesResponseSchema = z.object({
+  outfitImages: z.array(outfitImageSchema).min(4).max(16),
+});
+
 export const analyzePhotoRequestSchema = z.object({
   image: imageInputSchema,
   preferences: preferencesSchema,
@@ -86,16 +96,21 @@ export const boardRequestSchema = z.object({
   analysis: analysisSchema,
   selectedStyles: z.array(styleCardSchema).min(4).max(16),
   preferences: preferencesSchema,
-  aspectRatio: z.string().default("1:1"),
+  aspectRatio: aspectRatioSchema.default("1:1"),
 });
 
 export const refineBoardRequestSchema = boardRequestSchema.extend({
   editInstruction: z.string().min(3).max(240),
 });
 
+export const outfitImagesRequestSchema = boardRequestSchema.extend({
+  editInstruction: z.string().min(3).max(240).optional(),
+});
+
 export const saveBoardRequestSchema = z.object({
   image: imageInputSchema,
   boardImage: z.string().min(20),
+  outfitImages: z.array(outfitImageSchema).min(4).max(16),
   analysis: analysisSchema,
   selectedStyles: z.array(styleCardSchema).min(4).max(16),
   preferences: preferencesSchema,
@@ -107,6 +122,8 @@ export type ImageInput = z.infer<typeof imageInputSchema>;
 export type StyleAnalysis = z.infer<typeof analysisSchema>;
 export type StyleCardData = z.infer<typeof styleCardSchema>;
 export type StyleOptionsResponse = z.infer<typeof styleOptionsResponseSchema>;
+export type OutfitImage = z.infer<typeof outfitImageSchema>;
+export type OutfitImagesResponse = z.infer<typeof outfitImagesResponseSchema>;
 export type BoardRequest = z.infer<typeof boardRequestSchema>;
 export type SaveBoardRequest = z.infer<typeof saveBoardRequestSchema>;
 export type AspectRatio = z.infer<typeof aspectRatioSchema>;

@@ -1,13 +1,15 @@
 import Link from "next/link";
-import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
-import { Download, ShoppingBag } from "lucide-react";
 import { AppNav } from "@/components/common/AppNav";
-import { DeleteBoardButton } from "@/components/dashboard/DeleteBoardButton";
+import { SavedBoardDetail } from "@/components/dashboard/SavedBoardDetail";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import type { Preferences, StyleAnalysis, StyleCardData } from "@/lib/schemas";
+import type {
+  OutfitImage,
+  Preferences,
+  StyleAnalysis,
+  StyleCardData,
+} from "@/lib/schemas";
 import { isSupabaseConfigured, storageBuckets } from "@/lib/supabase/config";
 import { getCurrentUser } from "@/lib/supabase/server";
 
@@ -21,7 +23,6 @@ type BoardDetail = {
   analysis_json: StyleAnalysis | null;
   preferences_json: Preferences | null;
   selected_styles_json: StyleCardData[] | null;
-  final_board_image_path: string | null;
   created_at: string;
 };
 
@@ -46,7 +47,7 @@ export default async function BoardDetailPage({
   const { data: board, error } = await supabase
     .from("boards")
     .select(
-      "id, title, trip_location, trip_type, aspect_ratio, number_of_styles, analysis_json, preferences_json, selected_styles_json, final_board_image_path, created_at",
+      "id, title, trip_location, trip_type, aspect_ratio, number_of_styles, analysis_json, preferences_json, selected_styles_json, created_at",
     )
     .eq("id", id)
     .eq("user_id", user.id)
@@ -57,16 +58,26 @@ export default async function BoardDetailPage({
   }
 
   const typedBoard = board as BoardDetail;
-  const signedUrl = typedBoard.final_board_image_path
-    ? (
-        await supabase.storage
-          .from(storageBuckets.generatedBoards)
-          .createSignedUrl(typedBoard.final_board_image_path, 60 * 30)
-      ).data?.signedUrl
-    : null;
-
   const selectedStyles = typedBoard.selected_styles_json ?? [];
   const palette = typedBoard.analysis_json?.recommendedColorPalette ?? [];
+  const { data: boardImages } = await supabase
+    .from("board_images")
+    .select("style_key, storage_path")
+    .eq("board_id", id)
+    .eq("user_id", user.id)
+    .eq("image_type", "outfit");
+
+  const outfitImages: OutfitImage[] = await Promise.all(
+    (boardImages ?? []).map(async (image) => {
+      const { data } = await supabase.storage
+        .from(storageBuckets.generatedOutfits)
+        .createSignedUrl(image.storage_path, 60 * 30);
+      return {
+        styleId: image.style_key ?? "",
+        image: data?.signedUrl ?? "",
+      };
+    }),
+  );
 
   return (
     <>
@@ -81,48 +92,24 @@ export default async function BoardDetailPage({
               {typedBoard.title}
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              {typedBoard.trip_location ?? "Trip"} · {typedBoard.trip_type ?? "style"} ·{" "}
+              {typedBoard.trip_location ?? "Trip"} / {typedBoard.trip_type ?? "style"} /{" "}
               {new Date(typedBoard.created_at).toLocaleString()}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {signedUrl ? (
-              <Button asChildLike="link" href={signedUrl}>
-                <Download className="h-4 w-4" />
-                Download
-              </Button>
-            ) : null}
-            <Button variant="secondary" disabled title="Coming soon">
-              <ShoppingBag className="h-4 w-4" />
-              Generate shopping links
-            </Button>
-            <DeleteBoardButton boardId={typedBoard.id} />
-          </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <Card>
-            <CardContent className="p-4">
-              <div className="overflow-hidden rounded-lg border bg-muted">
-                {signedUrl ? (
-                  <Image
-                    src={signedUrl}
-                    alt={`${typedBoard.title} generated board`}
-                    width={1200}
-                    height={1200}
-                    unoptimized
-                    className="h-auto w-full"
-                  />
-                ) : (
-                  <div className="flex aspect-square items-center justify-center text-sm text-muted-foreground">
-                    Board image unavailable
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+        {typedBoard.analysis_json && typedBoard.preferences_json ? (
+          <SavedBoardDetail
+            boardId={typedBoard.id}
+            analysis={typedBoard.analysis_json}
+            preferences={typedBoard.preferences_json}
+            selectedStyles={selectedStyles}
+            outfitImages={outfitImages}
+          />
+        ) : null}
 
-          <div className="space-y-4">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="space-y-4 lg:col-start-2">
             <Card>
               <CardContent className="space-y-3 p-4">
                 <p className="text-sm font-semibold">Board details</p>

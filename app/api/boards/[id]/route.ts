@@ -46,12 +46,22 @@ export async function DELETE(
     const boardPaths = [
       board.final_board_image_path,
       ...(images ?? [])
-        .filter((image) => image.image_type !== "source_photo")
+        .filter((image) => image.image_type === "final_board")
         .map((image) => image.storage_path),
     ].filter(Boolean) as string[];
+    const outfitPaths = (images ?? [])
+      .filter((image) => image.image_type === "outfit")
+      .map((image) => image.storage_path)
+      .filter(Boolean);
 
     if (boardPaths.length > 0) {
       await supabase.storage.from(storageBuckets.generatedBoards).remove(boardPaths);
+    }
+
+    if (outfitPaths.length > 0) {
+      await supabase.storage
+        .from(storageBuckets.generatedOutfits)
+        .remove(outfitPaths);
     }
 
     if (board.source_photo_id) {

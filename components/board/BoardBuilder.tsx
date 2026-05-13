@@ -27,6 +27,8 @@ import { Progress } from "@/components/ui/progress";
 import { ToastProvider, useToast } from "@/components/ui/toast";
 import type {
   ImageInput,
+  OutfitImage,
+  OutfitImagesResponse,
   Preferences,
   StyleAnalysis,
   StyleCardData,
@@ -45,6 +47,7 @@ type GeneratedHistoryItem = {
 type BoardBuilderSavePayload = {
   image: ImageInput;
   boardImage: string;
+  outfitImages: OutfitImage[];
   analysis: StyleAnalysis;
   selectedStyles: StyleCardData[];
   preferences: Preferences;
@@ -89,9 +92,9 @@ function StyleTripApp({
   const [styles, setStyles] = useState<StyleCardData[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [styleTarget, setStyleTarget] = useState(12);
-  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [outfitImages, setOutfitImages] = useState<OutfitImage[]>([]);
   const [saving, setSaving] = useState(false);
-  const [history, setHistory] = useState<GeneratedHistoryItem[]>(() => {
+  const [history] = useState<GeneratedHistoryItem[]>(() => {
     if (typeof window === "undefined") {
       return [];
     }
@@ -110,18 +113,6 @@ function StyleTripApp({
     () => styles.filter((style) => selectedIds.includes(style.id)),
     [selectedIds, styles],
   );
-
-  function persistHistory(nextHistory: GeneratedHistoryItem[]) {
-    setHistory(nextHistory);
-    try {
-      sessionStorage.setItem("styletrip-history", JSON.stringify(nextHistory));
-    } catch {
-      toast({
-        title: "Session gallery is full",
-        description: "The latest board is still available, but history was not saved.",
-      });
-    }
-  }
 
   async function postJson<T>(url: string, payload: unknown): Promise<T> {
     const response = await fetch(url, {
@@ -230,12 +221,11 @@ function StyleTripApp({
       return;
     }
 
-    setStep(generatedImage ? "result" : "generate");
-    setLoadingLabel(instruction ? "Finalizing image" : "Generating outfit board");
+    setStep(outfitImages.length > 0 ? "result" : "generate");
+    setLoadingLabel(instruction ? "Finalizing image" : "Generating outfit images");
 
     try {
-      const endpoint = instruction ? "/api/refine-board" : "/api/generate-style-board";
-      const result = await postJson<{ image: string }>(endpoint, {
+      const result = await postJson<OutfitImagesResponse>("/api/generate-outfit-images", {
         image,
         analysis,
         selectedStyles,
@@ -243,16 +233,7 @@ function StyleTripApp({
         aspectRatio: preferences.aspectRatio,
         editInstruction: instruction,
       });
-      setGeneratedImage(result.image);
-      const nextHistory = [
-        {
-          id: crypto.randomUUID(),
-          image: result.image,
-          createdAt: new Date().toISOString(),
-        },
-        ...history,
-      ].slice(0, 6);
-      persistHistory(nextHistory);
+      setOutfitImages(result.outfitImages);
       setStep("result");
     } catch (error) {
       toast({
@@ -264,8 +245,8 @@ function StyleTripApp({
     }
   }
 
-  async function handleSaveBoard() {
-    if (!image || !analysis || !generatedImage) {
+  async function handleSaveBoard(boardImage: string) {
+    if (!image || !analysis || outfitImages.length === 0) {
       toast({
         title: "Generate a board first",
         description: "A finished board is required before saving.",
@@ -285,7 +266,8 @@ function StyleTripApp({
     try {
       await onSaveBoard({
         image,
-        boardImage: generatedImage,
+        boardImage,
+        outfitImages,
         analysis,
         selectedStyles,
         preferences,
@@ -489,7 +471,7 @@ function StyleTripApp({
           </div>
         ) : null}
 
-        {step === "result" && generatedImage ? (
+        {step === "result" && outfitImages.length > 0 && analysis ? (
           <div className="space-y-6">
             <StepHeader
               eyebrow="Step 5"
@@ -497,14 +479,16 @@ function StyleTripApp({
               description="Download the current board, regenerate it with a quick direction, or edit the setup and create another version."
             />
             <GeneratedBoard
-              image={generatedImage}
+              analysis={analysis}
+              preferences={preferences}
+              selectedStyles={selectedStyles}
+              outfitImages={outfitImages}
               loading={loading}
               onRegenerate={(instruction) => void handleGenerateBoard(instruction)}
               onEditPreferences={() => setStep("upload")}
               persistEnabled={persistEnabled}
               saving={saving}
-              onSaveBoard={() => void handleSaveBoard()}
-              aspectRatio={preferences.aspectRatio}
+              onSaveBoard={(boardImage) => void handleSaveBoard(boardImage)}
             />
             {history.length > 1 ? <HistoryGallery history={history} /> : null}
           </div>

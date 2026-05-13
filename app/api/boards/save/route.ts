@@ -32,7 +32,15 @@ export async function POST(request: Request) {
       return jsonError(parsed.error.errors[0]?.message ?? "Invalid request.");
     }
 
-    const { image, boardImage, analysis, selectedStyles, preferences, title } =
+    const {
+      image,
+      boardImage,
+      outfitImages,
+      analysis,
+      selectedStyles,
+      preferences,
+      title,
+    } =
       parsed.data;
     const boardId = randomUUID();
     const photoId = randomUUID();
@@ -109,6 +117,35 @@ export async function POST(request: Request) {
     });
     if (imageInsert.error) {
       throw imageInsert.error;
+    }
+
+    for (const outfitImage of outfitImages) {
+      const outfitUpload = await imageStringToUploadable(outfitImage.image);
+      const outfitImageId = randomUUID();
+      const outfitPath = `${user.id}/${boardId}/outfits/${outfitImage.styleId}.${outfitUpload.extension}`;
+
+      const outfitStorageResult = await supabase.storage
+        .from(storageBuckets.generatedOutfits)
+        .upload(outfitPath, outfitUpload.buffer, {
+          contentType: outfitUpload.mimeType,
+          upsert: true,
+        });
+      if (outfitStorageResult.error) {
+        throw outfitStorageResult.error;
+      }
+
+      const outfitInsert = await supabase.from("board_images").insert({
+        id: outfitImageId,
+        board_id: boardId,
+        user_id: user.id,
+        image_type: "outfit",
+        style_key: outfitImage.styleId,
+        storage_path: outfitPath,
+        prompt_used: outfitImage.promptUsed,
+      });
+      if (outfitInsert.error) {
+        throw outfitInsert.error;
+      }
     }
 
     const generationInsert = await supabase.from("generations").insert({

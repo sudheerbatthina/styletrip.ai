@@ -1,6 +1,7 @@
 "use client";
 
-import Image from "next/image";
+import { useRef } from "react";
+import { toPng } from "html-to-image";
 import {
   Download,
   RefreshCw,
@@ -10,6 +11,13 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { FashionBoardRenderer } from "@/components/result/FashionBoardRenderer";
+import type {
+  OutfitImage,
+  Preferences,
+  StyleAnalysis,
+  StyleCardData,
+} from "@/lib/schemas";
 
 const refinements = [
   "more streetwear",
@@ -23,52 +31,68 @@ const refinements = [
 ];
 
 export function GeneratedBoard({
-  image,
+  analysis,
+  preferences,
+  selectedStyles,
+  outfitImages,
   loading,
   onRegenerate,
   onEditPreferences,
   onSaveBoard,
   persistEnabled = false,
   saving = false,
-  aspectRatio = "1:1",
 }: {
-  image: string;
+  analysis: StyleAnalysis;
+  preferences: Preferences;
+  selectedStyles: StyleCardData[];
+  outfitImages: OutfitImage[];
   loading?: boolean;
   onRegenerate: (instruction?: string) => void;
   onEditPreferences: () => void;
-  onSaveBoard?: () => void;
+  onSaveBoard?: (boardImage: string) => void;
   persistEnabled?: boolean;
   saving?: boolean;
-  aspectRatio?: "1:1" | "4:5" | "16:9";
 }) {
-  function downloadImage() {
+  const boardRef = useRef<HTMLDivElement>(null);
+
+  async function exportBoard() {
+    if (!boardRef.current) {
+      throw new Error("Board is not ready to export.");
+    }
+
+    return toPng(boardRef.current, {
+      cacheBust: true,
+      pixelRatio: 1,
+      backgroundColor: "#f8f3ea",
+    });
+  }
+
+  async function downloadImage() {
+    const boardImage = await exportBoard();
     const link = document.createElement("a");
-    link.href = image;
+    link.href = boardImage;
     link.download = "styletrip-ai-outfit-board.png";
     document.body.appendChild(link);
     link.click();
     link.remove();
   }
 
+  async function saveBoard() {
+    const boardImage = await exportBoard();
+    onSaveBoard?.(boardImage);
+  }
+
   return (
     <Card>
       <CardContent className="p-4 sm:p-5">
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div
-            className={
-              aspectRatio === "16:9"
-                ? "relative aspect-video overflow-hidden rounded-lg border bg-muted"
-                : aspectRatio === "4:5"
-                  ? "relative aspect-[4/5] overflow-hidden rounded-lg border bg-muted"
-                  : "relative aspect-square overflow-hidden rounded-lg border bg-muted"
-            }
-          >
-            <Image
-              src={image}
-              alt="Generated AI outfit inspiration board"
-              fill
-              className="object-contain"
-              unoptimized
+          <div className="overflow-auto rounded-lg border bg-muted p-3">
+            <FashionBoardRenderer
+              ref={boardRef}
+              analysis={analysis}
+              preferences={preferences}
+              selectedStyles={selectedStyles}
+              outfitImages={outfitImages}
             />
           </div>
 
@@ -76,19 +100,19 @@ export function GeneratedBoard({
             <div>
               <h2 className="text-xl font-bold">AI outfit inspiration</h2>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                This is a fashion collage for inspiration, not an exact try-on or
-                identity match.
+                The board is rendered with frontend typography and layout, using AI
+                outfit images as visual panels. It is not an exact try-on.
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               {persistEnabled ? (
-                <Button onClick={onSaveBoard} disabled={loading || saving}>
+                <Button onClick={() => void saveBoard()} disabled={loading || saving}>
                   <Save className="h-4 w-4" />
                   {saving ? "Saving" : "Save Board"}
                 </Button>
               ) : null}
-              <Button onClick={downloadImage} disabled={loading}>
+              <Button onClick={() => void downloadImage()} disabled={loading}>
                 <Download className="h-4 w-4" />
                 Download
               </Button>
@@ -104,18 +128,14 @@ export function GeneratedBoard({
                 <SlidersHorizontal className="h-4 w-4" />
                 Edit Preferences
               </Button>
-              <Button
-                variant="secondary"
-                disabled
-                title="Coming soon"
-              >
+              <Button variant="secondary" disabled title="Coming soon">
                 <ShoppingBag className="h-4 w-4" />
                 Shopping Links
               </Button>
             </div>
 
             <div className="space-y-2">
-              <p className="text-sm font-semibold">Regenerate with</p>
+              <p className="text-sm font-semibold">Regenerate full board with</p>
               <div className="flex flex-wrap gap-2">
                 {refinements.map((instruction) => (
                   <Button
@@ -130,6 +150,10 @@ export function GeneratedBoard({
                   </Button>
                 ))}
               </div>
+              <p className="text-xs leading-5 text-muted-foreground">
+                TODO: later support regenerating one selected style, replacing only
+                that outfit image, and keeping the rest of the board unchanged.
+              </p>
             </div>
 
             <div className="rounded-lg border bg-muted/35 p-4">

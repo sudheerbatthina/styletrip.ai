@@ -53,6 +53,9 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     router.refresh();
   }
 
+  // TODO: Add Google OAuth here later with `supabase.auth.signInWithOAuth`.
+  // Keep email/password as the only MVP provider for now.
+
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
