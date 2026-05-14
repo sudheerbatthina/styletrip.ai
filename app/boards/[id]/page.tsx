@@ -26,6 +26,12 @@ type BoardDetail = {
   created_at: string;
 };
 
+function getSavedMatchScore(style: SelectableStyle) {
+  if (!("referenceImageUrl" in style) || style.overallMatchScore <= 0) {
+    return null;
+  }
+  return Math.round(style.overallMatchScore);
+}
 export const dynamic = "force-dynamic";
 
 export default async function BoardDetailPage({
@@ -140,16 +146,23 @@ export default async function BoardDetailPage({
               <CardContent className="space-y-3 p-4">
                 <p className="text-sm font-semibold">Selected reference looks</p>
                 <div className="space-y-3">
-                  {selectedStyles.map((style, index) => (
-                    <div key={style.id} className="rounded-md border bg-muted/35 p-3">
-                      <p className="text-sm font-bold">
-                        {index + 1}. {style.title}
-                      </p>
-                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                        {style.items.join(", ")}
-                      </p>
-                    </div>
-                  ))}
+                  {selectedStyles.map((style, index) => {
+                    const matchScore = getSavedMatchScore(style);
+
+                    return (
+                      <div key={style.id} className="rounded-md border bg-muted/35 p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-bold">
+                            {index + 1}. {style.title}
+                          </p>
+                          {matchScore ? <Badge>{matchScore}% match</Badge> : null}
+                        </div>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                          {style.items.join(", ")}
+                        </p>
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>

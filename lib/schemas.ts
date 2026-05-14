@@ -91,6 +91,8 @@ export const internalStylePlanSchema = z.object({
   overallGuidance: z.string(),
 });
 
+export const matchScoreSchema = z.number().int().min(0).max(100);
+
 export const referenceLookSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -104,6 +106,13 @@ export const referenceLookSchema = z.object({
   sourceUrl: z.string().nullable(),
   promptHint: z.string(),
   selected: z.boolean().default(false),
+  overallMatchScore: matchScoreSchema.default(0),
+  bodyFitScore: matchScoreSchema.default(0),
+  colorScore: matchScoreSchema.default(0),
+  occasionScore: matchScoreSchema.default(0),
+  preferenceScore: matchScoreSchema.default(0),
+  whyThisMatches: z.array(z.string()).default([]),
+  matchTags: z.array(z.string()).default([]),
 });
 
 export const selectableStyleSchema = z.union([referenceLookSchema, styleCardSchema]);
@@ -183,6 +192,7 @@ export type BoardRequest = z.infer<typeof boardRequestSchema>;
 export type SaveBoardRequest = z.infer<typeof saveBoardRequestSchema>;
 export type AspectRatio = z.infer<typeof aspectRatioSchema>;
 export type ResemblanceMode = z.infer<typeof resemblanceModeSchema>;
+
 
 
 

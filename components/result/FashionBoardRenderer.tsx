@@ -92,9 +92,16 @@ export const FashionBoardRenderer = forwardRef<
                 <div className="space-y-2 p-3">
                   <div className="flex items-start justify-between gap-2">
                     <h2 className="text-lg font-bold leading-tight">{style.title}</h2>
-                    <span className="rounded bg-[#eadfce] px-2 py-1 text-xs font-semibold">
-                      {getFit(style)}
-                    </span>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      {getMatchScore(style) ? (
+                        <span className="rounded bg-[#123d52] px-2 py-1 text-xs font-semibold text-white">
+                          {getMatchScore(style)}% match
+                        </span>
+                      ) : null}
+                      <span className="rounded bg-[#eadfce] px-2 py-1 text-xs font-semibold">
+                        {getFit(style)}
+                      </span>
+                    </div>
                   </div>
                   <p className="text-xs font-semibold uppercase tracking-normal text-[#0f5366]">
                     {getOccasion(style)}
@@ -132,6 +139,12 @@ function isReferenceLook(style: SelectableStyle): style is ReferenceLook {
   return "referenceImageUrl" in style;
 }
 
+function getMatchScore(style: SelectableStyle) {
+  if (!isReferenceLook(style) || style.overallMatchScore <= 0) {
+    return null;
+  }
+  return Math.round(style.overallMatchScore);
+}
 function getOccasion(style: SelectableStyle) {
   return isReferenceLook(style) ? style.occasion : style.bestFor;
 }

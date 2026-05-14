@@ -255,6 +255,10 @@ function StyleTripApp({
         : [...feedback[kind], id],
     };
 
+    if (kind === "notMyStyle" && !active) {
+      setSelectedIds(selectedIds.filter((item) => item !== id));
+    }
+
     setFeedback(nextFeedback);
     setPreferences((current) => ({
       ...current,
@@ -472,7 +476,13 @@ function StyleTripApp({
                     </Button>
                   </CardContent>
                 </Card>
-                {stylePlan ? <StylePlanDetails stylePlan={stylePlan} /> : null}
+                {stylePlan && analysis ? (
+                  <StylePlanDetails
+                    stylePlan={stylePlan}
+                    analysis={analysis}
+                    preferences={preferencesWithFeedback}
+                  />
+                ) : null}
               </div>
               <ReferenceLookGrid
                 looks={referenceLooks}
@@ -683,7 +693,18 @@ function AdviceList({
   );
 }
 
-function StylePlanDetails({ stylePlan }: { stylePlan: InternalStylePlan }) {
+function StylePlanDetails({
+  stylePlan,
+  analysis,
+  preferences,
+}: {
+  stylePlan: InternalStylePlan;
+  analysis: StyleAnalysis;
+  preferences: Preferences;
+}) {
+  const dislikedStyles = preferences.dislikedStyles.trim();
+  const palette = analysis.recommendedColorPalette.slice(0, 5).join(", ");
+
   return (
     <details className="rounded-lg border bg-background p-4">
       <summary className="cursor-pointer text-sm font-semibold">
@@ -691,6 +712,20 @@ function StylePlanDetails({ stylePlan }: { stylePlan: InternalStylePlan }) {
       </summary>
       <div className="mt-3 space-y-3 text-sm leading-6 text-muted-foreground">
         <p>{stylePlan.overallGuidance}</p>
+        <InfoRow
+          label="Photo/style profile"
+          value={analysis.visibleStyleProfile.currentOutfitNotes}
+        />
+        <InfoRow
+          label="Occasion"
+          value={preferences.occasionTypes.join(", ") || stylePlan.occasionFocus.join(", ")}
+        />
+        <InfoRow label="Fit preference" value={preferences.preferredFit} />
+        <InfoRow label="Color palette" value={palette || "Flexible travel neutrals"} />
+        <InfoRow
+          label="Disliked styles"
+          value={dislikedStyles || "No disliked styles entered."}
+        />
         <div className="flex flex-wrap gap-2">
           {stylePlan.occasionFocus.map((occasion) => (
             <Badge key={occasion}>{occasion}</Badge>
@@ -701,6 +736,16 @@ function StylePlanDetails({ stylePlan }: { stylePlan: InternalStylePlan }) {
   );
 }
 
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-normal text-foreground">
+        {label}
+      </p>
+      <p>{value}</p>
+    </div>
+  );
+}
 function CostGuardPanel() {
   return (
     <div className="rounded-lg border bg-muted/35 p-4 text-sm leading-6 text-muted-foreground">
@@ -727,7 +772,12 @@ function SelectedLooksPreview({ looks }: { looks: ReferenceLook[] }) {
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {looks.map((look, index) => (
             <div key={look.id} className="rounded-lg border bg-muted/35 p-4">
-              <Badge>{index + 1}</Badge>
+              <div className="flex items-center gap-2">
+                <Badge>{index + 1}</Badge>
+                {look.overallMatchScore > 0 ? (
+                  <Badge className="bg-background text-foreground">{Math.round(look.overallMatchScore)}% match</Badge>
+                ) : null}
+              </div>
               <h3 className="mt-3 text-sm font-bold">{look.title}</h3>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 {look.occasion} / {look.fit} / {look.items.join(", ")}

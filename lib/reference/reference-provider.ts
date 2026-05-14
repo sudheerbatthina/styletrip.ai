@@ -1,4 +1,5 @@
 import { mockStyleCards } from "@/lib/mock-data";
+import { scoreMockReferenceLooks } from "@/lib/matching/mock-match-scorer";
 import type {
   InternalStylePlan,
   Preferences,
@@ -82,7 +83,7 @@ export function getMockReferenceLooks(
 ): ReferenceLook[] {
   const target = Math.max(8, Math.min(16, preferences.numberOfStyleIdeas));
 
-  return mockStyleCards.slice(0, target).map((style, index) => ({
+  const looks: ReferenceLook[] = mockStyleCards.slice(0, target).map((style, index) => ({
     id: `look-${index + 1}`,
     title: style.title,
     occasion: getOccasion(style, preferences, index),
@@ -95,7 +96,16 @@ export function getMockReferenceLooks(
     sourceUrl: null,
     promptHint: style.imagePromptHint,
     selected: false,
+    overallMatchScore: 0,
+    bodyFitScore: 0,
+    colorScore: 0,
+    occasionScore: 0,
+    preferenceScore: 0,
+    whyThisMatches: [],
+    matchTags: [],
   }));
+
+  return scoreMockReferenceLooks({ looks, analysis, preferences });
 }
 
 export function getReferenceLooksForPlan({

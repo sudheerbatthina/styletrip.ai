@@ -24,13 +24,13 @@ The user-facing workflow is visual-first:
 1. User uploads a photo and answers simple trip/style questions.
 2. The app analyzes styling cues and creates an internal style plan.
 3. The app shows visual reference look cards, not a wall of fashion labels.
-4. The user selects looks they like and can mark local feedback such as more-like-this, not-my-style, and generate-this-on-me-later.
+4. The user selects looks they like or marks a look as not their style.
 5. Only after look selection does the app generate personalized/mock outfit panels.
 6. The frontend renders the final fashion board with React/CSS and real text.
 
 The app does not rely on AI to generate the full final collage with readable text. Outfit titles, occasions, item lists, colors/fit, and labels are frontend text. This gives cleaner typography, better layout control, and reliable support for `1:1`, `4:5`, and `16:9`.
 
-For MVP, mock mode uses local reference images and mock outfit images. Real curated/stock/catalog reference providers and paid personalized image providers are future integration points.
+For MVP, mock mode uses local reference images, deterministic match scoring, and mock outfit images. Real curated/stock/catalog reference providers, AI scoring, and paid personalized image providers are future integration points.
 
 ## Routes
 
@@ -83,7 +83,7 @@ Set:
 NEXT_PUBLIC_MOCK_MODE=true
 ```
 
-Mock mode returns sample photo analysis, an internal style plan, visual reference look cards, and mock generated outfit images without calling OpenAI or paid image-generation providers. The final board is still rendered in the frontend. If Supabase is configured, mock-generated boards can be saved to the database and storage after login. If Supabase is not configured, the builder still works but saved boards/auth are disabled with visible warnings.
+Mock mode returns sample photo analysis, an internal style plan, ranked visual reference look cards with match scores, and mock generated outfit images without calling OpenAI or paid image-generation providers. The final board is still rendered in the frontend. If Supabase is configured, mock-generated boards can be saved to the database and storage after login. If Supabase is not configured, the builder still works but saved boards/auth are disabled with visible warnings.
 
 To use real photo-analysis calls:
 
@@ -166,6 +166,7 @@ Email/password auth is implemented for MVP. Google Sign-In is intentionally not 
 - Shopping agent: search verified retailers for matching items by color, fabric, silhouette, and price.
 - Closet upload: generate outfits from clothes users already own.
 - Reference providers: plug in Pexels, Unsplash, curated fashion catalogs, and retailer/product feeds.
+- AI match scoring: replace the mock scorer in `lib/matching` with a provider-backed scorer after cost and privacy review.
 - User feedback: save liked/disliked reference looks to improve future recommendations.
 - Trip packing list: convert selected outfits into a packing checklist.
 - Multiple boards: generate separate boards for day, night, pool, airport, dinner, club, and photoshoot.
