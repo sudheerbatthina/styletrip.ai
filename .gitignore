@@ -4,3 +4,5 @@ next-dev.log
 next-dev.err.log
 .env*.local
 !.env.example
+.env
+.env.local

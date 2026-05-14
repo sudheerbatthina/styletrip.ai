@@ -8,8 +8,9 @@ import type {
   AspectRatio,
   OutfitImage,
   Preferences,
+  ReferenceLook,
+  SelectableStyle,
   StyleAnalysis,
-  StyleCardData,
 } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 
@@ -18,7 +19,7 @@ export const FashionBoardRenderer = forwardRef<
   {
     analysis: StyleAnalysis;
     preferences: Preferences;
-    selectedStyles: StyleCardData[];
+    selectedStyles: SelectableStyle[];
     outfitImages: OutfitImage[];
   }
 >(function FashionBoardRenderer(
@@ -29,13 +30,14 @@ export const FashionBoardRenderer = forwardRef<
   const imageByStyle = new Map(
     outfitImages.map((outfitImage) => [outfitImage.styleId, outfitImage.image]),
   );
-  const palette = analysis.recommendedColorPalette.slice(0, 8);
-  const footwear = Array.from(
-    new Set(selectedStyles.flatMap((style) => style.footwear).slice(0, 8)),
-  );
-  const accessories = Array.from(
-    new Set(selectedStyles.flatMap((style) => style.accessories).slice(0, 10)),
-  );
+  const palette = Array.from(
+    new Set([
+      ...analysis.recommendedColorPalette.slice(0, 8),
+      ...selectedStyles.flatMap(getColors).slice(0, 8),
+    ]),
+  ).slice(0, 10);
+  const occasions = Array.from(new Set(selectedStyles.map(getOccasion))).slice(0, 8);
+  const fits = Array.from(new Set(selectedStyles.map(getFit))).slice(0, 8);
 
   return (
     <div
@@ -57,7 +59,7 @@ export const FashionBoardRenderer = forwardRef<
             </h1>
           </div>
           <div className="text-right text-xl leading-8 text-[#52616b]">
-            <p>{selectedStyles.length} outfit ideas</p>
+            <p>{selectedStyles.length} visual looks</p>
             <p>{aspectRatio} board</p>
             <p>{formatResemblance(preferences.resemblanceMode)}</p>
           </div>
@@ -88,12 +90,20 @@ export const FashionBoardRenderer = forwardRef<
                   </div>
                 </div>
                 <div className="space-y-2 p-3">
-                  <h2 className="text-lg font-bold leading-tight">{style.title}</h2>
+                  <div className="flex items-start justify-between gap-2">
+                    <h2 className="text-lg font-bold leading-tight">{style.title}</h2>
+                    <span className="rounded bg-[#eadfce] px-2 py-1 text-xs font-semibold">
+                      {getFit(style)}
+                    </span>
+                  </div>
+                  <p className="text-xs font-semibold uppercase tracking-normal text-[#0f5366]">
+                    {getOccasion(style)}
+                  </p>
                   <p className="text-sm leading-5 text-[#52616b]">
-                    {style.items.slice(0, 4).join(" · ")}
+                    {getItems(style).slice(0, 4).join(" · ")}
                   </p>
                   <div className="flex flex-wrap gap-1.5">
-                    {style.colors.slice(0, 3).map((color) => (
+                    {getColors(style).slice(0, 3).map((color) => (
                       <span
                         key={color}
                         className="rounded bg-[#eadfce] px-2 py-1 text-xs font-semibold"
@@ -110,13 +120,36 @@ export const FashionBoardRenderer = forwardRef<
 
         <footer className="mt-6 grid gap-4 border-t border-[#c9bbab] pt-5 text-lg leading-7 lg:grid-cols-3">
           <FooterGroup title="Best colors" items={palette} />
-          <FooterGroup title="Footwear" items={footwear} />
-          <FooterGroup title="Accessories" items={accessories} />
+          <FooterGroup title="Occasions" items={occasions} />
+          <FooterGroup title="Fits" items={fits} />
         </footer>
       </div>
     </div>
   );
 });
+
+function isReferenceLook(style: SelectableStyle): style is ReferenceLook {
+  return "referenceImageUrl" in style;
+}
+
+function getOccasion(style: SelectableStyle) {
+  return isReferenceLook(style) ? style.occasion : style.bestFor;
+}
+
+function getFit(style: SelectableStyle) {
+  return isReferenceLook(style) ? style.fit : style.vibe;
+}
+
+function getItems(style: SelectableStyle) {
+  return style.items;
+}
+
+function getColors(style: SelectableStyle) {
+  if (isReferenceLook(style)) {
+    return style.colorMood.split("/").map((color) => color.trim()).filter(Boolean);
+  }
+  return style.colors;
+}
 
 function FooterGroup({ title, items }: { title: string; items: string[] }) {
   return (
@@ -162,3 +195,5 @@ function formatResemblance(value: Preferences["resemblanceMode"]) {
   }
   return "Strong resemblance";
 }
+
+

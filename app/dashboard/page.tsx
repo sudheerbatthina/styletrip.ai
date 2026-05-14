@@ -118,7 +118,7 @@ export default async function DashboardPage() {
                   <CardContent className="space-y-3 p-4">
                     <div className="flex flex-wrap gap-2">
                       <Badge>{board.aspect_ratio ?? "1:1"}</Badge>
-                      <Badge>{board.number_of_styles ?? 0} styles</Badge>
+                      <Badge>{board.number_of_styles ?? 0} looks</Badge>
                     </div>
                     <h2 className="font-bold">{board.title}</h2>
                     <p className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -139,3 +139,4 @@ export default async function DashboardPage() {
     </>
   );
 }
+

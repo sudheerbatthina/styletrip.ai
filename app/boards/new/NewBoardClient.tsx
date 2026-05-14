@@ -7,7 +7,7 @@ import type {
   OutfitImage,
   Preferences,
   StyleAnalysis,
-  StyleCardData,
+  SelectableStyle,
 } from "@/lib/schemas";
 
 export function NewBoardClient({ persistEnabled }: { persistEnabled: boolean }) {
@@ -18,7 +18,7 @@ export function NewBoardClient({ persistEnabled }: { persistEnabled: boolean }) 
     boardImage: string;
     outfitImages: OutfitImage[];
     analysis: StyleAnalysis;
-    selectedStyles: StyleCardData[];
+    selectedStyles: SelectableStyle[];
     preferences: Preferences;
   }) {
     const response = await fetch("/api/boards/save", {
@@ -43,3 +43,4 @@ export function NewBoardClient({ persistEnabled }: { persistEnabled: boolean }) 
     />
   );
 }
+

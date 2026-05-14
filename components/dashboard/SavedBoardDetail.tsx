@@ -10,7 +10,7 @@ import type {
   OutfitImage,
   Preferences,
   StyleAnalysis,
-  StyleCardData,
+  SelectableStyle,
 } from "@/lib/schemas";
 
 export function SavedBoardDetail({
@@ -23,7 +23,7 @@ export function SavedBoardDetail({
   boardId: string;
   analysis: StyleAnalysis;
   preferences: Preferences;
-  selectedStyles: StyleCardData[];
+  selectedStyles: SelectableStyle[];
   outfitImages: OutfitImage[];
 }) {
   const boardRef = useRef<HTMLDivElement>(null);
@@ -67,10 +67,11 @@ export function SavedBoardDetail({
         </Button>
         <DeleteBoardButton boardId={boardId} />
         <p className="pt-2 text-xs leading-5 text-muted-foreground">
-          TODO: later support regenerating one saved style, replacing that outfit
+          TODO: later support regenerating one saved look, replacing that outfit
           image, and leaving the remaining board unchanged.
         </p>
       </div>
     </div>
   );
 }
+

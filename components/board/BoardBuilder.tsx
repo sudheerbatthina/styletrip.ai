@@ -11,8 +11,12 @@ import {
 } from "lucide-react";
 import { StepHeader } from "@/components/common/StepHeader";
 import { PreferenceForm, defaultPreferences } from "@/components/preferences/PreferenceForm";
+import { ReferenceFeedbackBar } from "@/components/reference/ReferenceFeedbackBar";
+import {
+  type ReferenceFeedback,
+} from "@/components/reference/ReferenceLookCard";
+import { ReferenceLookGrid } from "@/components/reference/ReferenceLookGrid";
 import { GeneratedBoard } from "@/components/result/GeneratedBoard";
-import { StyleGrid } from "@/components/styles/StyleGrid";
 import { PhotoUploader } from "@/components/upload/PhotoUploader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,16 +31,18 @@ import { Progress } from "@/components/ui/progress";
 import { ToastProvider, useToast } from "@/components/ui/toast";
 import type {
   ImageInput,
+  InternalStylePlan,
   OutfitImage,
   OutfitImagesResponse,
   Preferences,
+  ReferenceLook,
+  ReferenceLooksResponse,
+  SelectableStyle,
   StyleAnalysis,
-  StyleCardData,
-  StyleOptionsResponse,
 } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 
-type Step = "upload" | "preferences" | "styles" | "generate" | "result";
+type Step = "upload" | "preferences" | "looks" | "generate" | "result";
 
 type GeneratedHistoryItem = {
   id: string;
@@ -49,19 +55,25 @@ type BoardBuilderSavePayload = {
   boardImage: string;
   outfitImages: OutfitImage[];
   analysis: StyleAnalysis;
-  selectedStyles: StyleCardData[];
+  selectedStyles: SelectableStyle[];
   preferences: Preferences;
 };
 
 const steps: Array<{ id: Step; label: string }> = [
   { id: "upload", label: "Upload" },
   { id: "preferences", label: "Preferences" },
-  { id: "styles", label: "Choose Styles" },
+  { id: "looks", label: "Pick Looks" },
   { id: "generate", label: "Generate" },
   { id: "result", label: "Result" },
 ];
 
 const styleCountOptions = [4, 8, 12, 16];
+const emptyFeedback: ReferenceFeedback = {
+  moreLikeThis: [],
+  notMyStyle: [],
+  generateLater: [],
+};
+const mockMode = process.env.NEXT_PUBLIC_MOCK_MODE === "true";
 
 export function BoardBuilder({
   persistEnabled = false,
@@ -89,9 +101,11 @@ function StyleTripApp({
   const [image, setImage] = useState<ImageInput | null>(null);
   const [preferences, setPreferences] = useState<Preferences>(defaultPreferences);
   const [analysis, setAnalysis] = useState<StyleAnalysis | null>(null);
-  const [styles, setStyles] = useState<StyleCardData[]>([]);
+  const [stylePlan, setStylePlan] = useState<InternalStylePlan | null>(null);
+  const [referenceLooks, setReferenceLooks] = useState<ReferenceLook[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [styleTarget, setStyleTarget] = useState(12);
+  const [feedback, setFeedback] = useState<ReferenceFeedback>(emptyFeedback);
   const [outfitImages, setOutfitImages] = useState<OutfitImage[]>([]);
   const [saving, setSaving] = useState(false);
   const [history] = useState<GeneratedHistoryItem[]>(() => {
@@ -109,9 +123,16 @@ function StyleTripApp({
   const [loadingLabel, setLoadingLabel] = useState<string | null>(null);
 
   const loading = Boolean(loadingLabel);
-  const selectedStyles = useMemo(
-    () => styles.filter((style) => selectedIds.includes(style.id)),
-    [selectedIds, styles],
+  const selectedLooks = useMemo(
+    () =>
+      referenceLooks
+        .filter((look) => selectedIds.includes(look.id))
+        .map((look) => ({ ...look, selected: true })),
+    [referenceLooks, selectedIds],
+  );
+  const preferencesWithFeedback = useMemo(
+    () => ({ ...preferences, referenceFeedback: feedback }),
+    [feedback, preferences],
   );
 
   async function postJson<T>(url: string, payload: unknown): Promise<T> {
@@ -139,6 +160,7 @@ function StyleTripApp({
 
     setPreferences(nextPreferences);
     setStyleTarget(nextPreferences.numberOfStyleIdeas);
+    setFeedback(nextPreferences.referenceFeedback ?? emptyFeedback);
     setLoadingLabel("Analyzing photo");
 
     try {
@@ -147,6 +169,9 @@ function StyleTripApp({
         preferences: nextPreferences,
       });
       setAnalysis(result);
+      setReferenceLooks([]);
+      setSelectedIds([]);
+      setOutfitImages([]);
       setStep("preferences");
     } catch (error) {
       toast({
@@ -158,23 +183,24 @@ function StyleTripApp({
     }
   }
 
-  async function handleGenerateStyles() {
+  async function handleDiscoverLooks() {
     if (!analysis) {
       return;
     }
 
-    setLoadingLabel("Building style options");
+    setLoadingLabel("Finding reference looks");
     try {
-      const result = await postJson<StyleOptionsResponse>(
-        "/api/generate-style-options",
-        { analysis, preferences },
+      const result = await postJson<ReferenceLooksResponse>(
+        "/api/generate-reference-looks",
+        { analysis, preferences: preferencesWithFeedback },
       );
-      setStyles(result.styles);
-      setSelectedIds(result.styles.slice(0, styleTarget).map((style) => style.id));
-      setStep("styles");
+      setStylePlan(result.stylePlan);
+      setReferenceLooks(result.referenceLooks);
+      setSelectedIds([]);
+      setStep("looks");
     } catch (error) {
       toast({
-        title: "Style option generation failed",
+        title: "Reference look discovery failed",
         description: error instanceof Error ? error.message : "Try again.",
       });
     } finally {
@@ -182,7 +208,7 @@ function StyleTripApp({
     }
   }
 
-  function toggleStyle(id: string) {
+  function toggleLook(id: string) {
     setSelectedIds((current) => {
       if (current.includes(id)) {
         return current.filter((item) => item !== id);
@@ -200,36 +226,48 @@ function StyleTripApp({
       ...current,
       numberOfStyleIdeas: nextTarget,
     }));
-    setSelectedIds((current) => {
-      if (current.length > nextTarget) {
-        return current.slice(0, nextTarget);
-      }
-      const missing = styles
-        .map((style) => style.id)
-        .filter((id) => !current.includes(id))
-        .slice(0, nextTarget - current.length);
-      return [...current, ...missing];
+    setSelectedIds((current) => current.slice(0, nextTarget));
+  }
+
+  function toggleFeedback(kind: keyof ReferenceFeedback, id: string) {
+    setFeedback((current) => {
+      const active = current[kind].includes(id);
+      const next = {
+        ...current,
+        [kind]: active
+          ? current[kind].filter((item) => item !== id)
+          : [...current[kind], id],
+      };
+      setPreferences((preferencesCurrent) => ({
+        ...preferencesCurrent,
+        referenceFeedback: next,
+      }));
+      return next;
     });
+
+    if (kind === "notMyStyle") {
+      setSelectedIds((current) => current.filter((item) => item !== id));
+    }
   }
 
   async function handleGenerateBoard(instruction?: string) {
-    if (!image || !analysis || selectedStyles.length < 4) {
+    if (!image || !analysis || selectedLooks.length < 4) {
       toast({
-        title: "Choose at least four styles",
-        description: "The board works best with 4, 8, 12, or 16 outfit ideas.",
+        title: "Pick at least four looks",
+        description: "Choose 4, 8, 12, or 16 reference looks before generation.",
       });
       return;
     }
 
     setStep(outfitImages.length > 0 ? "result" : "generate");
-    setLoadingLabel(instruction ? "Finalizing image" : "Generating outfit images");
+    setLoadingLabel(instruction ? "Finalizing image" : "Generating personalized looks");
 
     try {
       const result = await postJson<OutfitImagesResponse>("/api/generate-outfit-images", {
         image,
         analysis,
-        selectedStyles,
-        preferences,
+        selectedStyles: selectedLooks,
+        preferences: preferencesWithFeedback,
         aspectRatio: preferences.aspectRatio,
         editInstruction: instruction,
       });
@@ -269,8 +307,8 @@ function StyleTripApp({
         boardImage,
         outfitImages,
         analysis,
-        selectedStyles,
-        preferences,
+        selectedStyles: selectedLooks,
+        preferences: preferencesWithFeedback,
       });
       toast({
         title: "Board saved",
@@ -332,7 +370,7 @@ function StyleTripApp({
             <StepHeader
               eyebrow="Step 1"
               title="Upload and set the trip direction"
-              description="Add a full-body photo and a few trip preferences. The analysis is limited to visible styling details and avoids identity or sensitive inferences."
+              description="Add a full-body photo and a few trip preferences. Your photo is used for styling guidance and resemblance only."
             />
             <div className="grid gap-6 lg:grid-cols-[430px_minmax(0,1fr)]">
               <PhotoUploader
@@ -344,9 +382,9 @@ function StyleTripApp({
               />
               <Card>
                 <CardHeader>
-                  <CardTitle>Trip and style preferences</CardTitle>
+                  <CardTitle>Trip and style questions</CardTitle>
                   <CardDescription>
-                    Defaults are set for a Las Vegas vacation and a square board.
+                    Simple answers help us find reference looks that fit the trip.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -366,21 +404,21 @@ function StyleTripApp({
             <StepHeader
               eyebrow="Step 2"
               title="Style profile"
-              description="Review the respectful style-only analysis, then build creative outfit directions from it."
+              description="Review the styling-only guidance, then discover visual looks for your trip. We avoid identity claims and sensitive guesses."
             />
             <div className="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
               {image ? <PhotoPreview image={image} /> : null}
-              <AnalysisPanel analysis={analysis} onContinue={handleGenerateStyles} />
+              <AnalysisPanel analysis={analysis} onContinue={handleDiscoverLooks} />
             </div>
           </div>
         ) : null}
 
-        {step === "styles" ? (
+        {step === "looks" ? (
           <div className="space-y-6">
             <StepHeader
               eyebrow="Step 3"
-              title="Choose style types"
-              description="Select the outfit concepts that should appear on the board. Each option stays creative, wearable, and trip-focused."
+              title="Pick the looks you like"
+              description="Reference looks are inspiration, not exact try-on. We only generate personalized images after you choose looks."
             />
             <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
               <div className="space-y-4">
@@ -388,7 +426,7 @@ function StyleTripApp({
                 <Card>
                   <CardContent className="space-y-4 p-4">
                     <div>
-                      <p className="text-sm font-semibold">Board size</p>
+                      <p className="text-sm font-semibold">Visual looks picked</p>
                       <p className="text-sm text-muted-foreground">
                         {selectedIds.length} of {styleTarget} selected
                       </p>
@@ -406,9 +444,10 @@ function StyleTripApp({
                         </Button>
                       ))}
                     </div>
+                    <ReferenceFeedbackBar feedback={feedback} />
                     <Button
                       className="w-full"
-                      disabled={selectedStyles.length < 4}
+                      disabled={selectedLooks.length < 4}
                       onClick={() => setStep("generate")}
                     >
                       Continue
@@ -416,12 +455,15 @@ function StyleTripApp({
                     </Button>
                   </CardContent>
                 </Card>
+                {stylePlan ? <StylePlanDetails stylePlan={stylePlan} /> : null}
               </div>
-              <StyleGrid
-                styles={styles}
+              <ReferenceLookGrid
+                looks={referenceLooks}
                 selectedIds={selectedIds}
                 maxSelected={styleTarget}
-                onToggle={toggleStyle}
+                feedback={feedback}
+                onToggle={toggleLook}
+                onFeedback={toggleFeedback}
               />
             </div>
           </div>
@@ -431,17 +473,18 @@ function StyleTripApp({
           <div className="space-y-6">
             <StepHeader
               eyebrow="Step 4"
-              title="Generate the inspiration board"
-              description="The final output is a polished collage with numbered outfit panels, style notes, colors, footwear, and accessories."
+              title="Generate personalized looks"
+              description="Personalized image generation runs only after you select reference looks. The final board text and layout are rendered by the frontend."
             />
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-              <SelectedStylesPreview styles={selectedStyles} />
+              <SelectedLooksPreview looks={selectedLooks} />
               <Card>
                 <CardContent className="space-y-4 p-5">
                   <Badge>{preferences.aspectRatio} board</Badge>
                   <h2 className="text-xl font-bold">
-                    {selectedStyles.length} outfits ready
+                    {selectedLooks.length} looks ready
                   </h2>
+                  <CostGuardPanel />
                   <p className="text-sm leading-6 text-muted-foreground">
                     The board is generated as AI outfit inspiration, not an exact
                     try-on. It will avoid explicit clothing, sensitive assumptions,
@@ -450,7 +493,7 @@ function StyleTripApp({
                   <div className="flex flex-col gap-2">
                     <Button
                       size="lg"
-                      disabled={loading || selectedStyles.length < 4}
+                      disabled={loading || selectedLooks.length < 4}
                       onClick={() => void handleGenerateBoard()}
                     >
                       {loading ? (
@@ -460,9 +503,9 @@ function StyleTripApp({
                       )}
                       Generate Board
                     </Button>
-                    <Button variant="outline" onClick={() => setStep("styles")}>
+                    <Button variant="outline" onClick={() => setStep("looks")}>
                       <ArrowLeft className="h-4 w-4" />
-                      Change Styles
+                      Change Looks
                     </Button>
                   </div>
                 </CardContent>
@@ -480,8 +523,8 @@ function StyleTripApp({
             />
             <GeneratedBoard
               analysis={analysis}
-              preferences={preferences}
-              selectedStyles={selectedStyles}
+              preferences={preferencesWithFeedback}
+              selectedStyles={selectedLooks}
               outfitImages={outfitImages}
               loading={loading}
               onRegenerate={(instruction) => void handleGenerateBoard(instruction)}
@@ -528,7 +571,7 @@ function PhotoPreview({ image }: { image: ImageInput }) {
           />
         </div>
         <p className="mt-3 text-sm text-muted-foreground">
-          Your photo is used only to generate style suggestions for this session.
+          Your photo is used for styling guidance and resemblance only.
         </p>
       </CardContent>
     </Card>
@@ -579,7 +622,7 @@ function AnalysisPanel({
           {analysis.confidenceNotes}
         </p>
         <Button onClick={onContinue} size="lg">
-          Build 24 Style Options
+          Discover Reference Looks
           <ArrowRight className="h-4 w-4" />
         </Button>
       </CardContent>
@@ -624,17 +667,54 @@ function AdviceList({
   );
 }
 
-function SelectedStylesPreview({ styles }: { styles: StyleCardData[] }) {
+function StylePlanDetails({ stylePlan }: { stylePlan: InternalStylePlan }) {
+  return (
+    <details className="rounded-lg border bg-background p-4">
+      <summary className="cursor-pointer text-sm font-semibold">
+        Why these looks?
+      </summary>
+      <div className="mt-3 space-y-3 text-sm leading-6 text-muted-foreground">
+        <p>{stylePlan.overallGuidance}</p>
+        <div className="flex flex-wrap gap-2">
+          {stylePlan.occasionFocus.map((occasion) => (
+            <Badge key={occasion}>{occasion}</Badge>
+          ))}
+        </div>
+      </div>
+    </details>
+  );
+}
+
+function CostGuardPanel() {
+  return (
+    <div className="rounded-lg border bg-muted/35 p-4 text-sm leading-6 text-muted-foreground">
+      {mockMode ? (
+        <p>
+          <span className="font-semibold text-foreground">Mock mode:</span> $0 estimated cost.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          <p className="font-semibold text-foreground">
+            Estimated cost will be calculated before generation.
+          </p>
+          <p>Personalized image generation is only run after you select looks.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SelectedLooksPreview({ looks }: { looks: ReferenceLook[] }) {
   return (
     <Card>
       <CardContent className="p-5">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {styles.map((style, index) => (
-            <div key={style.id} className="rounded-lg border bg-muted/35 p-4">
+          {looks.map((look, index) => (
+            <div key={look.id} className="rounded-lg border bg-muted/35 p-4">
               <Badge>{index + 1}</Badge>
-              <h3 className="mt-3 text-sm font-bold">{style.title}</h3>
+              <h3 className="mt-3 text-sm font-bold">{look.title}</h3>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                {style.items.join(", ")}
+                {look.occasion} / {look.fit} / {look.items.join(", ")}
               </p>
             </div>
           ))}

@@ -37,6 +37,7 @@ export const defaultPreferences: Preferences = {
   numberOfStyleIdeas: 12,
   usePhotoReferenceConsent: false,
   resemblanceMode: "strong",
+  referenceFeedback: { moreLikeThis: [], notMyStyle: [], generateLater: [] },
 };
 
 export function PreferenceForm({
@@ -199,3 +200,5 @@ function Field({
     </div>
   );
 }
+
+

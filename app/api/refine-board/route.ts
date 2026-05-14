@@ -81,6 +81,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ image: mockBoardDataUrl });
     }
 
+    if (process.env.ENABLE_PAID_IMAGE_GENERATION !== "true") {
+      return jsonError(
+        "Personalized image generation is not enabled yet. Cost confirmation will be added before real providers run.",
+        402,
+      );
+    }
+
     const {
       image,
       analysis,
@@ -111,3 +118,5 @@ export async function POST(request: Request) {
     );
   }
 }
+
+

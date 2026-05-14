@@ -16,7 +16,7 @@ import type {
   OutfitImage,
   Preferences,
   StyleAnalysis,
-  StyleCardData,
+  SelectableStyle,
 } from "@/lib/schemas";
 
 const refinements = [
@@ -44,7 +44,7 @@ export function GeneratedBoard({
 }: {
   analysis: StyleAnalysis;
   preferences: Preferences;
-  selectedStyles: StyleCardData[];
+  selectedStyles: SelectableStyle[];
   outfitImages: OutfitImage[];
   loading?: boolean;
   onRegenerate: (instruction?: string) => void;
@@ -98,7 +98,7 @@ export function GeneratedBoard({
 
           <div className="space-y-4">
             <div>
-              <h2 className="text-xl font-bold">AI outfit inspiration</h2>
+              <h2 className="text-xl font-bold">Personalized look inspiration</h2>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 The board is rendered with frontend typography and layout, using AI
                 outfit images as visual panels. It is not an exact try-on.
@@ -151,8 +151,8 @@ export function GeneratedBoard({
                 ))}
               </div>
               <p className="text-xs leading-5 text-muted-foreground">
-                TODO: later support regenerating one selected style, replacing only
-                that outfit image, and keeping the rest of the board unchanged.
+                TODO: later support regenerating one selected look, replacing only
+                that look image, and keeping the rest of the board unchanged.
               </p>
             </div>
 
@@ -170,3 +170,4 @@ export function GeneratedBoard({
     </Card>
   );
 }
+

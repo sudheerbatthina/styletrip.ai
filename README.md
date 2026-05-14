@@ -2,7 +2,7 @@
 
 StyleTrip AI is a saved-board web app for travel outfit inspiration. Users can sign up with email/password, create AI outfit boards from a full-body photo and trip preferences, save generated boards, revisit them from a dashboard, download them, and delete them.
 
-The app keeps the original mock-mode generation flow working, so UI development does not require OpenAI or Supabase.
+The app keeps mock-mode generation working, so UI development does not require OpenAI, paid image generation, or Supabase.
 
 ## Stack
 
@@ -19,16 +19,18 @@ The app keeps the original mock-mode generation flow working, so UI development 
 
 ## Board Generation Strategy
 
-The app does not rely on AI to generate the full final collage with readable text. Instead:
+The user-facing workflow is visual-first:
 
-1. The API generates individual outfit images for the selected style cards.
-2. The frontend renders the final fashion board with React/CSS.
-3. Outfit titles, item lists, colors, footwear, accessories, and labels are real frontend text.
-4. The rendered board is exported/downloaded as PNG.
+1. User uploads a photo and answers simple trip/style questions.
+2. The app analyzes styling cues and creates an internal style plan.
+3. The app shows visual reference look cards, not a wall of fashion labels.
+4. The user selects looks they like and can mark local feedback such as more-like-this, not-my-style, and generate-this-on-me-later.
+5. Only after look selection does the app generate personalized/mock outfit panels.
+6. The frontend renders the final fashion board with React/CSS and real text.
 
-This gives cleaner typography, better layout control, and reliable support for `1:1`, `4:5`, and `16:9`.
+The app does not rely on AI to generate the full final collage with readable text. Outfit titles, occasions, item lists, colors/fit, and labels are frontend text. This gives cleaner typography, better layout control, and reliable support for `1:1`, `4:5`, and `16:9`.
 
-For MVP, regeneration regenerates the full board. The code includes TODOs for future single-style regeneration and replacing one outfit image while keeping the rest of the board unchanged.
+For MVP, mock mode uses local reference images and mock outfit images. Real curated/stock/catalog reference providers and paid personalized image providers are future integration points.
 
 ## Routes
 
@@ -54,7 +56,7 @@ NEXT_PUBLIC_MOCK_MODE=true
 NEXT_PUBLIC_APP_URL=http://127.0.0.1:3000
 ```
 
-Model names are read from env. Change `OPENAI_TEXT_MODEL` for photo analysis/style planning and `OPENAI_IMAGE_MODEL` for image generation.
+Model names are read from env. Change `OPENAI_TEXT_MODEL` for photo analysis/style planning and `OPENAI_IMAGE_MODEL` for future image generation. Paid image generation is guarded by `ENABLE_PAID_IMAGE_GENERATION=true` and should only be enabled after cost confirmation UX is implemented.
 
 ## Local Development
 
@@ -81,15 +83,17 @@ Set:
 NEXT_PUBLIC_MOCK_MODE=true
 ```
 
-Mock mode returns sample photo analysis, 24 style cards, and mock generated outfit images without calling OpenAI. The final board is still rendered in the frontend. If Supabase is configured, mock-generated boards can be saved to the database and storage after login. If Supabase is not configured, the builder still works but saved boards/auth are disabled with visible warnings.
+Mock mode returns sample photo analysis, an internal style plan, visual reference look cards, and mock generated outfit images without calling OpenAI or paid image-generation providers. The final board is still rendered in the frontend. If Supabase is configured, mock-generated boards can be saved to the database and storage after login. If Supabase is not configured, the builder still works but saved boards/auth are disabled with visible warnings.
 
-To use real OpenAI calls:
+To use real photo-analysis calls:
 
 ```bash
 NEXT_PUBLIC_MOCK_MODE=false
 OPENAI_API_KEY=...
 OPENAI_TEXT_MODEL=...
 OPENAI_IMAGE_MODEL=...
+# Future paid image generation guard:
+# ENABLE_PAID_IMAGE_GENERATION=true
 ```
 
 ## Supabase Setup
@@ -134,7 +138,7 @@ If bucket creation is blocked in your Supabase environment, create them manually
 
 - Uploaded photos are not stored unless the user saves a generated board.
 - Saved source photos and generated boards are stored in private Supabase buckets under the user id.
-- Photos are sent only to OpenAI for analysis/generation when mock mode is off.
+- Photos are sent only to configured model providers when mock mode is off. Paid personalized image generation remains guarded and should run only after the user selects looks and confirms cost.
 - The app does not identify the person.
 - The app does not infer sensitive traits.
 - The app avoids sexualized, explicit, underwear-only, or exact try-on language.
@@ -143,7 +147,8 @@ If bucket creation is blocked in your Supabase environment, create them manually
 ## API Notes
 
 - `POST /api/analyze-photo`
-- `POST /api/generate-style-options`
+- `POST /api/generate-reference-looks`
+- `POST /api/generate-style-options` (legacy/provider compatibility)
 - `POST /api/generate-outfit-images`
 - `POST /api/generate-style-board`
 - `POST /api/refine-board`
@@ -160,6 +165,8 @@ Email/password auth is implemented for MVP. Google Sign-In is intentionally not 
 
 - Shopping agent: search verified retailers for matching items by color, fabric, silhouette, and price.
 - Closet upload: generate outfits from clothes users already own.
-- User feedback: save liked/disliked styles to improve future recommendations.
+- Reference providers: plug in Pexels, Unsplash, curated fashion catalogs, and retailer/product feeds.
+- User feedback: save liked/disliked reference looks to improve future recommendations.
 - Trip packing list: convert selected outfits into a packing checklist.
 - Multiple boards: generate separate boards for day, night, pool, airport, dinner, club, and photoshoot.
+

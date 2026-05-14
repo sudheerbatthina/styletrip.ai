@@ -1,8 +1,8 @@
-import type { Preferences, StyleAnalysis, StyleCardData } from "@/lib/schemas";
+import type { Preferences, SelectableStyle, StyleAnalysis } from "@/lib/schemas";
 
 type BoardPromptInput = {
   analysis: StyleAnalysis;
-  selectedStyles: StyleCardData[];
+  selectedStyles: SelectableStyle[];
   preferences: Preferences;
   editInstruction?: string;
 };
@@ -87,3 +87,4 @@ Make the labels clean and legible.
 
 Output only the generated image.`;
 }
+

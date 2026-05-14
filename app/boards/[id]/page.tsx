@@ -8,7 +8,7 @@ import type {
   OutfitImage,
   Preferences,
   StyleAnalysis,
-  StyleCardData,
+  SelectableStyle,
 } from "@/lib/schemas";
 import { isSupabaseConfigured, storageBuckets } from "@/lib/supabase/config";
 import { getCurrentUser } from "@/lib/supabase/server";
@@ -22,7 +22,7 @@ type BoardDetail = {
   number_of_styles: number | null;
   analysis_json: StyleAnalysis | null;
   preferences_json: Preferences | null;
-  selected_styles_json: StyleCardData[] | null;
+  selected_styles_json: SelectableStyle[] | null;
   created_at: string;
 };
 
@@ -115,7 +115,7 @@ export default async function BoardDetailPage({
                 <p className="text-sm font-semibold">Board details</p>
                 <div className="flex flex-wrap gap-2">
                   <Badge>{typedBoard.aspect_ratio ?? "1:1"}</Badge>
-                  <Badge>{typedBoard.number_of_styles ?? selectedStyles.length} styles</Badge>
+                  <Badge>{typedBoard.number_of_styles ?? selectedStyles.length} looks</Badge>
                   <Badge>
                     {typedBoard.preferences_json?.resemblanceMode ?? "strong"} resemblance
                   </Badge>
@@ -138,7 +138,7 @@ export default async function BoardDetailPage({
 
             <Card>
               <CardContent className="space-y-3 p-4">
-                <p className="text-sm font-semibold">Selected styles</p>
+                <p className="text-sm font-semibold">Selected reference looks</p>
                 <div className="space-y-3">
                   {selectedStyles.map((style, index) => (
                     <div key={style.id} className="rounded-md border bg-muted/35 p-3">
@@ -159,3 +159,4 @@ export default async function BoardDetailPage({
     </>
   );
 }
+

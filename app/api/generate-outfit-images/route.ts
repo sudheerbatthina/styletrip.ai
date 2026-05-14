@@ -90,9 +90,16 @@ export async function POST(request: Request) {
           outfitImages: selectedStyles.map((style, index) => ({
             styleId: style.id,
             image: buildMockOutfitImage(style.title, index),
-            promptUsed: "mock-mode",
+            promptUsed: "mock-reference-look-mode",
           })),
         }),
+      );
+    }
+
+    if (process.env.ENABLE_PAID_IMAGE_GENERATION !== "true") {
+      return jsonError(
+        "Personalized image generation is not enabled yet. Cost confirmation will be added before real providers run.",
+        402,
       );
     }
 
@@ -128,3 +135,4 @@ export async function POST(request: Request) {
     );
   }
 }
+

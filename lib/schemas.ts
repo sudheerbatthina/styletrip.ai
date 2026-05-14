@@ -35,6 +35,13 @@ export const preferencesSchema = z.object({
   numberOfStyleIdeas: z.coerce.number().int().min(4).max(16).default(12),
   usePhotoReferenceConsent: z.boolean().default(false),
   resemblanceMode: resemblanceModeSchema.default("strong"),
+  referenceFeedback: z
+    .object({
+      moreLikeThis: z.array(z.string()).default([]),
+      notMyStyle: z.array(z.string()).default([]),
+      generateLater: z.array(z.string()).default([]),
+    })
+    .optional(),
 });
 
 export const visibleStyleProfileSchema = z.object({
@@ -67,8 +74,52 @@ export const styleCardSchema = z.object({
   imagePromptHint: z.string(),
 });
 
+export const internalStylePlanSchema = z.object({
+  stylePlanId: z.string(),
+  occasionFocus: z.array(z.string()),
+  recommendedDirections: z.array(
+    z.object({
+      id: z.string(),
+      title: z.string(),
+      reason: z.string(),
+      colors: z.array(z.string()),
+      silhouettes: z.array(z.string()),
+      avoid: z.array(z.string()),
+      occasion: z.string(),
+    }),
+  ),
+  overallGuidance: z.string(),
+});
+
+export const referenceLookSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  occasion: z.string(),
+  fit: z.string(),
+  colorMood: z.string(),
+  items: z.array(z.string()),
+  whyItFits: z.string(),
+  referenceImageUrl: z.string().min(20),
+  source: z.enum(["mock", "curated", "stock", "catalog"]),
+  sourceUrl: z.string().nullable(),
+  promptHint: z.string(),
+  selected: z.boolean().default(false),
+});
+
+export const selectableStyleSchema = z.union([referenceLookSchema, styleCardSchema]);
+
 export const styleOptionsResponseSchema = z.object({
   styles: z.array(styleCardSchema).length(24),
+});
+
+export const referenceLooksRequestSchema = z.object({
+  analysis: analysisSchema,
+  preferences: preferencesSchema,
+});
+
+export const referenceLooksResponseSchema = z.object({
+  stylePlan: internalStylePlanSchema,
+  referenceLooks: z.array(referenceLookSchema).min(4).max(24),
 });
 
 export const outfitImageSchema = z.object({
@@ -94,7 +145,7 @@ export const styleOptionsRequestSchema = z.object({
 export const boardRequestSchema = z.object({
   image: imageInputSchema,
   analysis: analysisSchema,
-  selectedStyles: z.array(styleCardSchema).min(4).max(16),
+  selectedStyles: z.array(selectableStyleSchema).min(4).max(16),
   preferences: preferencesSchema,
   aspectRatio: aspectRatioSchema.default("1:1"),
 });
@@ -112,7 +163,7 @@ export const saveBoardRequestSchema = z.object({
   boardImage: z.string().min(20),
   outfitImages: z.array(outfitImageSchema).min(4).max(16),
   analysis: analysisSchema,
-  selectedStyles: z.array(styleCardSchema).min(4).max(16),
+  selectedStyles: z.array(selectableStyleSchema).min(4).max(16),
   preferences: preferencesSchema,
   title: z.string().min(1).max(120).optional(),
 });
@@ -121,10 +172,17 @@ export type Preferences = z.infer<typeof preferencesSchema>;
 export type ImageInput = z.infer<typeof imageInputSchema>;
 export type StyleAnalysis = z.infer<typeof analysisSchema>;
 export type StyleCardData = z.infer<typeof styleCardSchema>;
+export type InternalStylePlan = z.infer<typeof internalStylePlanSchema>;
+export type ReferenceLook = z.infer<typeof referenceLookSchema>;
+export type SelectableStyle = z.infer<typeof selectableStyleSchema>;
 export type StyleOptionsResponse = z.infer<typeof styleOptionsResponseSchema>;
+export type ReferenceLooksResponse = z.infer<typeof referenceLooksResponseSchema>;
 export type OutfitImage = z.infer<typeof outfitImageSchema>;
 export type OutfitImagesResponse = z.infer<typeof outfitImagesResponseSchema>;
 export type BoardRequest = z.infer<typeof boardRequestSchema>;
 export type SaveBoardRequest = z.infer<typeof saveBoardRequestSchema>;
 export type AspectRatio = z.infer<typeof aspectRatioSchema>;
 export type ResemblanceMode = z.infer<typeof resemblanceModeSchema>;
+
+
+
