@@ -1,8 +1,8 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState, type ReactNode } from "react";
-import { useForm } from "react-hook-form";
+import { type ReactNode } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +52,7 @@ export function PreferenceForm({
 }) {
   const {
     register,
+    control,
     handleSubmit,
     setValue,
     formState: { errors },
@@ -60,15 +61,15 @@ export function PreferenceForm({
     defaultValues,
   });
 
-  const [selectedOccasions, setSelectedOccasions] = useState<string[]>(
-    defaultValues.occasionTypes,
-  );
+  const selectedOccasions = useWatch({
+    control,
+    name: "occasionTypes",
+  }) ?? [];
 
   function toggleOccasion(occasion: string) {
     const next = selectedOccasions.includes(occasion)
       ? selectedOccasions.filter((item) => item !== occasion)
       : [...selectedOccasions, occasion];
-    setSelectedOccasions(next);
     setValue("occasionTypes", next, { shouldDirty: true, shouldValidate: true });
   }
 
@@ -94,7 +95,7 @@ export function PreferenceForm({
           <Input placeholder="budget, mid-range, luxury" {...register("budgetRange")} />
         </Field>
         <Field label="Preferred fit" error={errors.preferredFit?.message}>
-          <Select {...register("preferredFit")}>
+          <Select defaultValue={defaultValues.preferredFit} {...register("preferredFit")}>
             <option value="slim">Slim</option>
             <option value="regular">Regular</option>
             <option value="relaxed">Relaxed</option>
@@ -129,17 +130,18 @@ export function PreferenceForm({
       </div>
 
       <Field label="Occasion types" error={errors.occasionTypes?.message}>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {occasions.map((occasion) => {
             const active = selectedOccasions.includes(occasion);
             return (
               <button
                 key={occasion}
                 type="button"
+                aria-pressed={active}
                 className={cn(
-                  "focus-ring rounded-md border px-3 py-2 text-left text-sm capitalize transition",
+                  "focus-ring w-full rounded-md border px-3 py-2 text-left text-sm capitalize transition",
                   active
-                    ? "border-primary bg-primary text-primary-foreground"
+                    ? "border-primary bg-primary text-primary-foreground shadow-sm"
                     : "bg-background hover:bg-muted",
                 )}
                 onClick={() => toggleOccasion(occasion)}

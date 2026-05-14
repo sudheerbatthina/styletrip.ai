@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useId, useRef, useState } from "react";
 import { ImagePlus, ShieldCheck, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,6 +18,10 @@ export function PhotoUploader({
   onChange: (image: ImageInput) => void;
   onError: (message: string) => void;
 }) {
+  const inputId = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [isReading, setIsReading] = useState(false);
+
   async function handleFile(file: File | undefined) {
     if (!file) {
       return;
@@ -29,6 +34,7 @@ export function PhotoUploader({
     }
 
     try {
+      setIsReading(true);
       const dataUrl = await fileToDataUrl(file);
       onChange({
         dataUrl,
@@ -36,6 +42,8 @@ export function PhotoUploader({
       });
     } catch (error) {
       onError(error instanceof Error ? error.message : "Could not read image.");
+    } finally {
+      setIsReading(false);
     }
   }
 
@@ -43,9 +51,9 @@ export function PhotoUploader({
     <Card className="overflow-hidden">
       <CardContent className="p-5">
         <div className="space-y-4">
-          <Label htmlFor="photo">Full-body photo</Label>
+          <Label htmlFor={inputId}>Full-body photo</Label>
           <label
-            htmlFor="photo"
+            htmlFor={inputId}
             className="focus-ring flex min-h-[320px] cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed bg-muted/45 p-4 text-center transition hover:bg-muted"
           >
             {value ? (
@@ -73,11 +81,15 @@ export function PhotoUploader({
             )}
           </label>
           <input
-            id="photo"
+            ref={inputRef}
+            id={inputId}
             type="file"
             accept="image/jpeg,image/png,image/webp"
             className="sr-only"
-            onChange={(event) => void handleFile(event.target.files?.[0])}
+            onChange={(event) => {
+              void handleFile(event.target.files?.[0]);
+              event.currentTarget.value = "";
+            }}
           />
           <div className="flex flex-col gap-3 rounded-lg border bg-background p-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
             <span className="flex items-center gap-2">
@@ -88,10 +100,11 @@ export function PhotoUploader({
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => document.getElementById("photo")?.click()}
+              disabled={isReading}
+              onClick={() => inputRef.current?.click()}
             >
               <Upload className="h-4 w-4" />
-              Choose Photo
+              {isReading ? "Loading..." : "Choose Photo"}
             </Button>
           </div>
         </div>
