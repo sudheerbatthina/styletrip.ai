@@ -209,52 +209,64 @@ function StyleTripApp({
   }
 
   function toggleLook(id: string) {
-    setSelectedIds((current) => {
-      if (current.includes(id)) {
-        return current.filter((item) => item !== id);
-      }
-      if (current.length >= styleTarget) {
-        return current;
-      }
-      return [...current, id];
-    });
+    const isAlreadySelected = selectedIds.includes(id);
+    const hasReachedLimit = selectedIds.length >= styleTarget;
+
+    if (!isAlreadySelected && hasReachedLimit) {
+      toast({
+        title: "Look limit reached",
+        description: `You set ${styleTarget} looks to generate. Deselect a look or choose a larger number.`,
+      });
+      return;
+    }
+
+    setSelectedIds(
+      isAlreadySelected
+        ? selectedIds.filter((item) => item !== id)
+        : [...selectedIds, id],
+    );
   }
 
   function updateStyleTarget(nextTarget: number) {
+    const trimmedSelectedIds = selectedIds.slice(0, nextTarget);
+    const trimmedCount = selectedIds.length - trimmedSelectedIds.length;
+
     setStyleTarget(nextTarget);
     setPreferences((current) => ({
       ...current,
       numberOfStyleIdeas: nextTarget,
     }));
-    setSelectedIds((current) => current.slice(0, nextTarget));
-  }
+    setSelectedIds(trimmedSelectedIds);
 
-  function toggleFeedback(kind: keyof ReferenceFeedback, id: string) {
-    setFeedback((current) => {
-      const active = current[kind].includes(id);
-      const next = {
-        ...current,
-        [kind]: active
-          ? current[kind].filter((item) => item !== id)
-          : [...current[kind], id],
-      };
-      setPreferences((preferencesCurrent) => ({
-        ...preferencesCurrent,
-        referenceFeedback: next,
-      }));
-      return next;
-    });
-
-    if (kind === "notMyStyle") {
-      setSelectedIds((current) => current.filter((item) => item !== id));
+    if (trimmedCount > 0) {
+      toast({
+        title: "Selection trimmed",
+        description: `Kept your first ${nextTarget} looks for the new generation target.`,
+      });
     }
   }
 
+  function toggleFeedback(kind: keyof ReferenceFeedback, id: string) {
+    const active = feedback[kind].includes(id);
+    const nextFeedback = {
+      ...feedback,
+      [kind]: active
+        ? feedback[kind].filter((item) => item !== id)
+        : [...feedback[kind], id],
+    };
+
+    setFeedback(nextFeedback);
+    setPreferences((current) => ({
+      ...current,
+      referenceFeedback: nextFeedback,
+    }));
+  }
+
   async function handleGenerateBoard(instruction?: string) {
-    if (!image || !analysis || selectedLooks.length < 4) {
+    if (!image || !analysis || selectedLooks.length < styleTarget) {
       toast({
-        title: "Pick at least four looks",
-        description: "Choose 4, 8, 12, or 16 reference looks before generation.",
+        title: `Pick ${styleTarget} looks`,
+        description: "Select the number of looks you want to generate before continuing.",
       });
       return;
     }
@@ -426,28 +438,33 @@ function StyleTripApp({
                 <Card>
                   <CardContent className="space-y-4 p-4">
                     <div>
-                      <p className="text-sm font-semibold">Visual looks picked</p>
+                      <p className="text-sm font-semibold">Selection progress</p>
                       <p className="text-sm text-muted-foreground">
                         {selectedIds.length} of {styleTarget} selected
                       </p>
                     </div>
-                    <div className="grid grid-cols-4 gap-2">
-                      {styleCountOptions.map((count) => (
-                        <Button
-                          key={count}
-                          type="button"
-                          size="sm"
-                          variant={styleTarget === count ? "default" : "outline"}
-                          onClick={() => updateStyleTarget(count)}
-                        >
-                          {count}
-                        </Button>
-                      ))}
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-muted-foreground">
+                        Looks to generate: 4 / 8 / 12 / 16
+                      </p>
+                      <div className="grid grid-cols-4 gap-2">
+                        {styleCountOptions.map((count) => (
+                          <Button
+                            key={count}
+                            type="button"
+                            size="sm"
+                            variant={styleTarget === count ? "default" : "outline"}
+                            onClick={() => updateStyleTarget(count)}
+                          >
+                            {count}
+                          </Button>
+                        ))}
+                      </div>
                     </div>
                     <ReferenceFeedbackBar feedback={feedback} />
                     <Button
                       className="w-full"
-                      disabled={selectedLooks.length < 4}
+                      disabled={selectedLooks.length < styleTarget}
                       onClick={() => setStep("generate")}
                     >
                       Continue
@@ -460,7 +477,6 @@ function StyleTripApp({
               <ReferenceLookGrid
                 looks={referenceLooks}
                 selectedIds={selectedIds}
-                maxSelected={styleTarget}
                 feedback={feedback}
                 onToggle={toggleLook}
                 onFeedback={toggleFeedback}
@@ -493,7 +509,7 @@ function StyleTripApp({
                   <div className="flex flex-col gap-2">
                     <Button
                       size="lg"
-                      disabled={loading || selectedLooks.length < 4}
+                      disabled={loading || selectedLooks.length < styleTarget}
                       onClick={() => void handleGenerateBoard()}
                     >
                       {loading ? (

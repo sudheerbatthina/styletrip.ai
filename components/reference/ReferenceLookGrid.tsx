@@ -6,14 +6,12 @@ import type { ReferenceLook } from "@/lib/schemas";
 export function ReferenceLookGrid({
   looks,
   selectedIds,
-  maxSelected,
   feedback,
   onToggle,
   onFeedback,
 }: {
   looks: ReferenceLook[];
   selectedIds: string[];
-  maxSelected: number;
   feedback: ReferenceFeedback;
   onToggle: (id: string) => void;
   onFeedback: (kind: keyof ReferenceFeedback, id: string) => void;
@@ -25,7 +23,6 @@ export function ReferenceLookGrid({
           key={look.id}
           look={look}
           selected={selectedIds.includes(look.id)}
-          disabled={selectedIds.length >= maxSelected}
           feedback={feedback}
           onToggle={() => onToggle(look.id)}
           onFeedback={onFeedback}

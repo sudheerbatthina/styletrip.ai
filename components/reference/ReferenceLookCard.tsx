@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { Check, ImagePlus, Sparkles, ThumbsDown, ThumbsUp } from "lucide-react";
+import { Check, ImagePlus, ThumbsDown, ThumbsUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -32,14 +32,13 @@ export function ReferenceLookCard({
 }) {
   const liked = feedback.moreLikeThis.includes(look.id);
   const disliked = feedback.notMyStyle.includes(look.id);
-  const generateLater = feedback.generateLater.includes(look.id);
 
   return (
     <Card
       className={cn(
         "overflow-hidden border bg-card transition",
-        selected && "border-primary ring-2 ring-primary/20",
-        disliked && "opacity-60",
+        selected && "border-2 border-primary bg-primary/5 ring-2 ring-primary/25",
+        disliked && !selected && "opacity-60",
       )}
     >
       <button
@@ -60,8 +59,9 @@ export function ReferenceLookCard({
             <Badge className="bg-background/95 text-foreground">{look.fit}</Badge>
           </div>
           {selected ? (
-            <span className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-soft">
-              <Check className="h-5 w-5" />
+            <span className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-soft">
+              <Check className="h-4 w-4" />
+              Selected
             </span>
           ) : null}
         </div>
@@ -77,37 +77,51 @@ export function ReferenceLookCard({
         </div>
       </button>
 
-      <div className="grid grid-cols-1 gap-2 border-t bg-muted/25 p-3">
+      <div className="space-y-2 border-t bg-muted/25 p-3">
         <Button
           type="button"
-          size="sm"
-          variant={liked ? "default" : "outline"}
-          onClick={() => onFeedback("moreLikeThis", look.id)}
+          className="w-full"
+          variant={selected ? "default" : "secondary"}
+          onClick={onToggle}
+          disabled={disabled && !selected}
+          aria-pressed={selected}
         >
-          <ThumbsUp className="h-4 w-4" />
-          More like this
+          <Check className="h-4 w-4" />
+          {selected ? "Selected" : "Select Look"}
         </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant={disliked ? "destructive" : "outline"}
-          onClick={() => onFeedback("notMyStyle", look.id)}
-        >
-          <ThumbsDown className="h-4 w-4" />
-          Not my style
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant={generateLater ? "secondary" : "outline"}
-          onClick={() => onFeedback("generateLater", look.id)}
-        >
-          {generateLater ? <Sparkles className="h-4 w-4" /> : <ImagePlus className="h-4 w-4" />}
-          Generate this on me later
-        </Button>
+
+        <div className="grid grid-cols-1 gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant={liked ? "default" : "outline"}
+            onClick={() => onFeedback("moreLikeThis", look.id)}
+          >
+            <ThumbsUp className="h-4 w-4" />
+            More like this
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={disliked ? "destructive" : "outline"}
+            onClick={() => onFeedback("notMyStyle", look.id)}
+          >
+            <ThumbsDown className="h-4 w-4" />
+            Not my style
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled
+            title="Coming later after cost confirmation"
+          >
+            <ImagePlus className="h-4 w-4" />
+            Generate this on me later
+          </Button>
+        </div>
       </div>
     </Card>
   );
 }
-
 

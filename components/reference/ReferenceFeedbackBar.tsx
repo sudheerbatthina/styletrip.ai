@@ -7,7 +7,6 @@ export function ReferenceFeedbackBar({ feedback }: { feedback: ReferenceFeedback
   const items = [
     ["More like this", feedback.moreLikeThis.length],
     ["Not my style", feedback.notMyStyle.length],
-    ["Generate on me later", feedback.generateLater.length],
   ] as const;
 
   return (
@@ -20,5 +19,4 @@ export function ReferenceFeedbackBar({ feedback }: { feedback: ReferenceFeedback
     </div>
   );
 }
-
 
