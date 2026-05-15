@@ -6,14 +6,8 @@ import { Check, ThumbsDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import type { ReferenceLook } from "@/lib/schemas";
+import type { ReferenceFeedback, ReferenceLook } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
-
-export type ReferenceFeedback = {
-  moreLikeThis: string[];
-  notMyStyle: string[];
-  generateLater: string[];
-};
 
 export function ReferenceLookCard({
   look,
@@ -33,7 +27,10 @@ export function ReferenceLookCard({
   const disliked = feedback.notMyStyle.includes(look.id);
   const matchTags = look.matchTags.slice(0, 2);
   const whyThisWorks = look.whyThisMatches[0] ?? look.whyItFits;
-  const matchScore = Math.round(look.overallMatchScore);
+  const matchScore = Math.max(
+    0,
+    Math.round(look.overallMatchScore - (disliked ? 32 : 0)),
+  );
   const sourceLabel = look.sourceName || look.source;
   const attribution = look.attributionText || (look.photographer ? `Photo by ${look.photographer}` : "");
 
@@ -67,6 +64,11 @@ export function ReferenceLookCard({
           <span className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-soft">
             <Check className="h-4 w-4" />
             Selected
+          </span>
+        ) : null}
+        {disliked && !selected ? (
+          <span className="absolute right-3 top-3 rounded-full bg-destructive px-3 py-2 text-xs font-semibold text-destructive-foreground shadow-soft">
+            Downranked
           </span>
         ) : null}
       </div>

@@ -3,12 +3,60 @@ import { randomUUID } from "crypto";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { storageBuckets } from "@/lib/supabase/config";
 import { imageStringToUploadable, parseDataUrl } from "@/lib/storage-utils";
-import { saveBoardRequestSchema } from "@/lib/schemas";
+import { saveBoardRequestSchema, type ReferenceLook, type SelectableStyle } from "@/lib/schemas";
 
 export const runtime = "nodejs";
 
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
+}
+
+function isReferenceLook(style: SelectableStyle): style is ReferenceLook {
+  return "referenceImageUrl" in style;
+}
+
+async function insertSavedFeedback({
+  supabase,
+  userId,
+  boardId,
+  selectedStyles,
+}: {
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>;
+  userId: string;
+  boardId: string;
+  selectedStyles: SelectableStyle[];
+}) {
+  if (!supabase) {
+    return;
+  }
+
+  const rows = selectedStyles.filter(isReferenceLook).map((look) => ({
+    user_id: userId,
+    board_id: boardId,
+    reference_look_id: look.id,
+    feedback_type: "saved",
+    look_title: look.title,
+    occasion: look.occasion,
+    fit: look.fit,
+    color_mood: look.colorMood,
+    items: look.items,
+    score_snapshot: {
+      overallMatchScore: look.overallMatchScore,
+      bodyFitScore: look.bodyFitScore,
+      colorScore: look.colorScore,
+      occasionScore: look.occasionScore,
+      preferenceScore: look.preferenceScore,
+    },
+  }));
+
+  if (rows.length === 0) {
+    return;
+  }
+
+  const result = await supabase.from("style_feedback").insert(rows);
+  if (result.error && result.error.code !== "42P01") {
+    throw result.error;
+  }
 }
 
 export async function POST(request: Request) {
@@ -163,6 +211,13 @@ export async function POST(request: Request) {
     if (generationInsert.error) {
       throw generationInsert.error;
     }
+
+    await insertSavedFeedback({
+      supabase,
+      userId: user.id,
+      boardId,
+      selectedStyles,
+    });
 
     return NextResponse.json({ boardId });
   } catch (error) {

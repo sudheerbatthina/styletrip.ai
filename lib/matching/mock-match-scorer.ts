@@ -40,6 +40,7 @@ export function scoreMockReferenceLooks({
   const dislikedStyles = splitList(preferences.dislikedStyles);
   const palette = analysis.recommendedColorPalette.map(normalize);
   const silhouettes = analysis.recommendedSilhouettes.map(normalize);
+  const feedback = preferences.referenceFeedback;
   const analysisText = normalize(
     `${analysis.visibleStyleProfile.currentOutfitNotes} ${analysis.visibleStyleProfile.fitAdvice.join(" ")} ${analysis.recommendedSilhouettes.join(" ")}`,
   );
@@ -64,11 +65,17 @@ export function scoreMockReferenceLooks({
         scoreContains(lookText, favoriteColors, 0, 10),
     );
     const dislikePenalty = dislikedStyles.some((style) => lookText.includes(style)) ? 24 : 0;
+    const selectedBoost = feedback?.selected.includes(look.id) ? 8 : 0;
+    const deselectedPenalty = feedback?.deselected.includes(look.id) ? 6 : 0;
+    const notMyStylePenalty = feedback?.notMyStyle.includes(look.id) ? 36 : 0;
     const preferenceScore = clamp(
       76 +
         (normalize(look.fit).includes(normalize(preferences.preferredFit)) ? 10 : 0) +
         (favoriteColors.some((color) => lookText.includes(color)) ? 8 : 0) -
-        dislikePenalty,
+        dislikePenalty +
+        selectedBoost -
+        deselectedPenalty -
+        notMyStylePenalty,
     );
     const currentStyleCompatibility = getCurrentStyleCompatibility(look, analysisText);
     const overallMatchScore = clamp(
@@ -76,7 +83,10 @@ export function scoreMockReferenceLooks({
         bodyFitScore * 0.25 +
         colorScore * 0.2 +
         preferenceScore * 0.15 +
-        currentStyleCompatibility * 0.1,
+        currentStyleCompatibility * 0.1 +
+        selectedBoost -
+        deselectedPenalty -
+        notMyStylePenalty,
     );
 
     const whyThisMatches = [
@@ -88,13 +98,17 @@ export function scoreMockReferenceLooks({
     if (dislikePenalty > 0) {
       whyThisMatches.push("Some details overlap with disliked styles, so this was downranked.");
     }
+    if (notMyStylePenalty > 0) {
+      whyThisMatches.push("You marked this direction as not your style, so similar looks are downranked.");
+    }
 
     const matchTags = [
       `${look.occasion}`,
       `${look.fit} fit`,
       `${look.colorMood.split("/")[0]?.trim() ?? "palette"}`,
+      notMyStylePenalty > 0 ? "downranked" : "",
       overallMatchScore >= 85 ? "high match" : "solid match",
-    ];
+    ].filter(Boolean);
 
     return {
       ...look,

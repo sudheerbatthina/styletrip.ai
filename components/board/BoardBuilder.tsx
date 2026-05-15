@@ -7,15 +7,13 @@ import {
   ArrowRight,
   CheckCircle2,
   Loader2,
+  RefreshCw,
   Sparkles,
 } from "lucide-react";
 import { StepHeader } from "@/components/common/StepHeader";
 import { CostEstimateCard } from "@/components/cost/CostEstimateCard";
 import { PreferenceForm, defaultPreferences } from "@/components/preferences/PreferenceForm";
 import { ReferenceFeedbackBar } from "@/components/reference/ReferenceFeedbackBar";
-import {
-  type ReferenceFeedback,
-} from "@/components/reference/ReferenceLookCard";
 import { ReferenceLookGrid } from "@/components/reference/ReferenceLookGrid";
 import { GeneratedBoard } from "@/components/result/GeneratedBoard";
 import { PhotoUploader } from "@/components/upload/PhotoUploader";
@@ -32,10 +30,12 @@ import { Progress } from "@/components/ui/progress";
 import { ToastProvider, useToast } from "@/components/ui/toast";
 import type {
   ImageInput,
+  FeedbackType,
   InternalStylePlan,
   OutfitImage,
   OutfitImagesResponse,
   Preferences,
+  ReferenceFeedback,
   ReferenceLook,
   ReferenceLooksResponse,
   SelectableStyle,
@@ -70,9 +70,13 @@ const steps: Array<{ id: Step; label: string }> = [
 
 const styleCountOptions = [4, 8, 12, 16];
 const emptyFeedback: ReferenceFeedback = {
-  moreLikeThis: [],
+  selected: [],
+  deselected: [],
   notMyStyle: [],
-  generateLater: [],
+  generated: [],
+  saved: [],
+  downloaded: [],
+  refreshCount: 0,
 };
 const mockMode = process.env.NEXT_PUBLIC_MOCK_MODE === "true";
 
@@ -104,6 +108,7 @@ function StyleTripApp({
   const [analysis, setAnalysis] = useState<StyleAnalysis | null>(null);
   const [stylePlan, setStylePlan] = useState<InternalStylePlan | null>(null);
   const [referenceLooks, setReferenceLooks] = useState<ReferenceLook[]>([]);
+  const [visibleLookIds, setVisibleLookIds] = useState<string[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [styleTarget, setStyleTarget] = useState(12);
   const [feedback, setFeedback] = useState<ReferenceFeedback>(emptyFeedback);
@@ -131,6 +136,13 @@ function StyleTripApp({
         .map((look) => ({ ...look, selected: true })),
     [referenceLooks, selectedIds],
   );
+  const visibleLooks = useMemo(
+    () =>
+      visibleLookIds
+        .map((id) => referenceLooks.find((look) => look.id === id))
+        .filter((look): look is ReferenceLook => Boolean(look)),
+    [referenceLooks, visibleLookIds],
+  );
   const preferencesWithFeedback = useMemo(
     () => ({ ...preferences, referenceFeedback: feedback }),
     [feedback, preferences],
@@ -148,6 +160,35 @@ function StyleTripApp({
       throw new Error(data.error ?? "Request failed.");
     }
     return data;
+  }
+
+  function getReferenceLook(id: string) {
+    return referenceLooks.find((look) => look.id === id);
+  }
+
+  function persistFeedbackEvent(feedbackType: FeedbackType, look: ReferenceLook) {
+    if (!persistEnabled) {
+      return;
+    }
+
+    void postJson<{ ok: boolean }>("/api/style-feedback", {
+      referenceLookId: look.id,
+      feedbackType,
+      lookTitle: look.title,
+      occasion: look.occasion,
+      fit: look.fit,
+      colorMood: look.colorMood,
+      items: look.items,
+      scoreSnapshot: {
+        overallMatchScore: look.overallMatchScore,
+        bodyFitScore: look.bodyFitScore,
+        colorScore: look.colorScore,
+        occasionScore: look.occasionScore,
+        preferenceScore: look.preferenceScore,
+      },
+    }).catch(() => {
+      // Feedback persistence is opportunistic; board creation should never fail because of it.
+    });
   }
 
   async function handleAnalyze(nextPreferences: Preferences) {
@@ -171,6 +212,7 @@ function StyleTripApp({
       });
       setAnalysis(result);
       setReferenceLooks([]);
+      setVisibleLookIds([]);
       setSelectedIds([]);
       setOutfitImages([]);
       setStep("preferences");
@@ -197,6 +239,7 @@ function StyleTripApp({
       );
       setStylePlan(result.stylePlan);
       setReferenceLooks(result.referenceLooks);
+      setVisibleLookIds(getInitialVisibleIds(result.referenceLooks, styleTarget, feedback));
       setSelectedIds([]);
       setStep("looks");
     } catch (error) {
@@ -210,6 +253,7 @@ function StyleTripApp({
   }
 
   function toggleLook(id: string) {
+    const look = getReferenceLook(id);
     const isAlreadySelected = selectedIds.includes(id);
     const hasReachedLimit = selectedIds.length >= styleTarget;
 
@@ -221,11 +265,27 @@ function StyleTripApp({
       return;
     }
 
-    setSelectedIds(
-      isAlreadySelected
-        ? selectedIds.filter((item) => item !== id)
-        : [...selectedIds, id],
-    );
+    const nextSelectedIds = isAlreadySelected
+      ? selectedIds.filter((item) => item !== id)
+      : [...selectedIds, id];
+    const nextFeedback = isAlreadySelected
+      ? appendFeedbackIds(removeFeedbackIds(feedback, "selected", [id]), "deselected", [id])
+      : removeFeedbackIds(
+          removeFeedbackIds(appendFeedbackIds(feedback, "selected", [id]), "notMyStyle", [id]),
+          "deselected",
+          [id],
+        );
+
+    setSelectedIds(nextSelectedIds);
+    setFeedback(nextFeedback);
+    setPreferences((current) => ({
+      ...current,
+      referenceFeedback: nextFeedback,
+    }));
+
+    if (look) {
+      persistFeedbackEvent(isAlreadySelected ? "deselected" : "selected", look);
+    }
   }
 
   function updateStyleTarget(nextTarget: number) {
@@ -238,6 +298,9 @@ function StyleTripApp({
       numberOfStyleIdeas: nextTarget,
     }));
     setSelectedIds(trimmedSelectedIds);
+    setVisibleLookIds((current) =>
+      getRefreshedVisibleIds(referenceLooks, nextTarget, feedback, trimmedSelectedIds, current),
+    );
 
     if (trimmedCount > 0) {
       toast({
@@ -248,30 +311,57 @@ function StyleTripApp({
   }
 
   function toggleFeedback(kind: keyof ReferenceFeedback, id: string) {
-    const active = feedback[kind].includes(id);
+    if (kind !== "notMyStyle") {
+      return;
+    }
+
+    const active = feedback.notMyStyle.includes(id);
+    const look = getReferenceLook(id);
+    const nextSelectedIds = selectedIds.filter((item) => item !== id);
+    const nextFeedback = active
+      ? removeFeedbackIds(feedback, "notMyStyle", [id])
+      : removeFeedbackIds(appendFeedbackIds(feedback, "notMyStyle", [id]), "selected", [id]);
+
+    setSelectedIds(nextSelectedIds);
+    setVisibleLookIds(
+      active
+        ? getRefreshedVisibleIds(referenceLooks, styleTarget, nextFeedback, nextSelectedIds, visibleLookIds)
+        : getVisibleIdsAfterRejection(referenceLooks, styleTarget, nextFeedback, nextSelectedIds, visibleLookIds, id),
+    );
+    setFeedback(nextFeedback);
+    setPreferences((current) => ({
+      ...current,
+      referenceFeedback: nextFeedback,
+    }));
+
+    if (!active && look) {
+      persistFeedbackEvent("not_my_style", look);
+    }
+  }
+
+  function refreshLooks() {
     const nextFeedback = {
       ...feedback,
-      [kind]: active
-        ? feedback[kind].filter((item) => item !== id)
-        : [...feedback[kind], id],
+      refreshCount: feedback.refreshCount + 1,
     };
-
-    if (kind === "notMyStyle" && !active) {
-      setSelectedIds(selectedIds.filter((item) => item !== id));
-      setReferenceLooks((current) => {
-        const rejected = current.find((look) => look.id === id);
-        if (!rejected) {
-          return current;
-        }
-        return [...current.filter((look) => look.id !== id), rejected];
-      });
-    }
+    const nextVisibleIds = getRefreshedVisibleIds(
+      referenceLooks,
+      styleTarget,
+      nextFeedback,
+      selectedIds,
+      visibleLookIds,
+    );
 
     setFeedback(nextFeedback);
     setPreferences((current) => ({
       ...current,
       referenceFeedback: nextFeedback,
     }));
+    setVisibleLookIds(nextVisibleIds);
+    toast({
+      title: "Looks refreshed",
+      description: "Looks refreshed using your feedback.",
+    });
   }
 
   async function handleGenerateBoard(instruction?: string) {
@@ -296,6 +386,13 @@ function StyleTripApp({
         editInstruction: instruction,
       });
       setOutfitImages(result.outfitImages);
+      const generatedFeedback = appendFeedbackIds(feedback, "generated", selectedIds);
+      setFeedback(generatedFeedback);
+      setPreferences((current) => ({
+        ...current,
+        referenceFeedback: generatedFeedback,
+      }));
+      selectedLooks.forEach((look) => persistFeedbackEvent("generated", look));
       setStep("result");
     } catch (error) {
       toast({
@@ -326,14 +423,20 @@ function StyleTripApp({
 
     setSaving(true);
     try {
+      const savedFeedback = appendFeedbackIds(feedback, "saved", selectedIds);
       await onSaveBoard({
         image,
         boardImage,
         outfitImages,
         analysis,
         selectedStyles: selectedLooks,
-        preferences: preferencesWithFeedback,
+        preferences: { ...preferences, referenceFeedback: savedFeedback },
       });
+      setFeedback(savedFeedback);
+      setPreferences((current) => ({
+        ...current,
+        referenceFeedback: savedFeedback,
+      }));
       toast({
         title: "Board saved",
         description: "You can open it again from your dashboard.",
@@ -437,7 +540,7 @@ function StyleTripApp({
           </div>
         ) : null}
 
-        {step === "looks" ? (
+              {step === "looks" ? (
           <div className="space-y-6">
             <StepHeader
               eyebrow="Step 3"
@@ -473,7 +576,19 @@ function StyleTripApp({
                         ))}
                       </div>
                     </div>
-                    <ReferenceFeedbackBar feedback={feedback} />
+                    <ReferenceFeedbackBar
+                      feedback={feedback}
+                      selectedCount={selectedIds.length}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      onClick={refreshLooks}
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                      Refresh Looks
+                    </Button>
                     <Button
                       className="w-full"
                       disabled={selectedLooks.length < styleTarget}
@@ -493,7 +608,7 @@ function StyleTripApp({
                 ) : null}
               </div>
               <ReferenceLookGrid
-                looks={referenceLooks}
+                looks={visibleLooks}
                 selectedIds={selectedIds}
                 feedback={feedback}
                 onToggle={toggleLook}
@@ -571,6 +686,15 @@ function StyleTripApp({
               loading={loading}
               onRegenerate={(instruction) => void handleGenerateBoard(instruction)}
               onEditPreferences={() => setStep("upload")}
+              onDownloadBoard={() => {
+                const downloadedFeedback = appendFeedbackIds(feedback, "downloaded", selectedIds);
+                setFeedback(downloadedFeedback);
+                setPreferences((current) => ({
+                  ...current,
+                  referenceFeedback: downloadedFeedback,
+                }));
+                selectedLooks.forEach((look) => persistFeedbackEvent("downloaded", look));
+              }}
               persistEnabled={persistEnabled}
               saving={saving}
               onSaveBoard={(boardImage) => void handleSaveBoard(boardImage)}
@@ -581,6 +705,134 @@ function StyleTripApp({
       </section>
     </main>
   );
+}
+
+function getInitialVisibleIds(
+  looks: ReferenceLook[],
+  target: number,
+  feedback: ReferenceFeedback,
+) {
+  return getRefreshedVisibleIds(looks, target, feedback, [], []);
+}
+
+function getVisibleLimit(lookCount: number, target: number) {
+  return Math.min(lookCount, Math.max(8, Math.min(24, target + 6)));
+}
+
+function getRefreshedVisibleIds(
+  looks: ReferenceLook[],
+  target: number,
+  feedback: ReferenceFeedback,
+  selectedIds: string[],
+  currentVisibleIds: string[],
+) {
+  const limit = getVisibleLimit(looks.length, target);
+  const orderedIds = orderLooksForFeedback(looks, feedback, selectedIds).map((look) => look.id);
+  const selectedVisibleIds = selectedIds.filter((id) => orderedIds.includes(id));
+  const preferredCurrentIds = currentVisibleIds.filter(
+    (id) => !selectedVisibleIds.includes(id) && !feedback.notMyStyle.includes(id),
+  );
+  const candidates = orderedIds.filter(
+    (id) =>
+      !selectedVisibleIds.includes(id) &&
+      !preferredCurrentIds.includes(id) &&
+      !feedback.notMyStyle.includes(id),
+  );
+
+  return uniqueIds([
+    ...selectedVisibleIds,
+    ...preferredCurrentIds,
+    ...candidates,
+  ]).slice(0, limit);
+}
+
+function getVisibleIdsAfterRejection(
+  looks: ReferenceLook[],
+  target: number,
+  feedback: ReferenceFeedback,
+  selectedIds: string[],
+  currentVisibleIds: string[],
+  rejectedId: string,
+) {
+  const limit = getVisibleLimit(looks.length, target);
+  const baseVisibleIds = currentVisibleIds.filter((id) => id !== rejectedId);
+  const orderedReplacementIds = orderLooksForFeedback(looks, feedback, selectedIds)
+    .map((look) => look.id)
+    .filter(
+      (id) =>
+        id !== rejectedId &&
+        !baseVisibleIds.includes(id) &&
+        !feedback.notMyStyle.includes(id),
+    );
+  const nextVisibleIds = uniqueIds([
+    ...selectedIds,
+    ...baseVisibleIds,
+    ...orderedReplacementIds,
+  ]).slice(0, limit);
+
+  return uniqueIds([...nextVisibleIds, rejectedId]).slice(0, Math.min(looks.length, limit + 1));
+}
+
+function orderLooksForFeedback(
+  looks: ReferenceLook[],
+  feedback: ReferenceFeedback,
+  selectedIds: string[],
+) {
+  return [...looks].sort((a, b) => {
+    const aGroup = getLookDisplayGroup(a.id, feedback, selectedIds);
+    const bGroup = getLookDisplayGroup(b.id, feedback, selectedIds);
+    if (aGroup !== bGroup) {
+      return aGroup - bGroup;
+    }
+    return getAdjustedMatchScore(b, feedback) - getAdjustedMatchScore(a, feedback);
+  });
+}
+
+function getLookDisplayGroup(
+  id: string,
+  feedback: ReferenceFeedback,
+  selectedIds: string[],
+) {
+  if (selectedIds.includes(id)) {
+    return 0;
+  }
+  if (feedback.notMyStyle.includes(id)) {
+    return 2;
+  }
+  return 1;
+}
+
+function getAdjustedMatchScore(look: ReferenceLook, feedback: ReferenceFeedback) {
+  return Math.max(
+    0,
+    look.overallMatchScore - (feedback.notMyStyle.includes(look.id) ? 32 : 0),
+  );
+}
+
+function appendFeedbackIds(
+  feedback: ReferenceFeedback,
+  kind: keyof Omit<ReferenceFeedback, "refreshCount">,
+  ids: string[],
+) {
+  return {
+    ...feedback,
+    [kind]: uniqueIds([...feedback[kind], ...ids]),
+  };
+}
+
+function removeFeedbackIds(
+  feedback: ReferenceFeedback,
+  kind: keyof Omit<ReferenceFeedback, "refreshCount">,
+  ids: string[],
+) {
+  return {
+    ...feedback,
+    [kind]: feedback[kind].filter((id) => !ids.includes(id)),
+  };
+}
+
+function uniqueIds(ids: string[]) {
+  return Array.from(new Set(ids.filter(Boolean)));
 }
 
 function LoadingBar({ label }: { label: string }) {

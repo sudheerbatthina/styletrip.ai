@@ -91,20 +91,20 @@ export const FashionBoardRenderer = forwardRef<
                 key={style.id}
                 className="min-h-0 overflow-hidden rounded-md border border-[#c9bbab] bg-[#fffaf2]"
               >
-                <div className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto]">
+                <div className={cn("grid h-full min-h-0", getPanelRowsClass(count))}>
                   <div className="relative min-h-0 bg-[#f1e8da]">
                     {image ? (
                       <img
                         src={image}
                         alt=""
-                        className="h-full w-full object-contain p-1.5"
+                        className="h-full w-full object-contain p-0.5"
                       />
                     ) : null}
                     <div className="absolute left-2 top-2 flex h-7 w-7 items-center justify-center rounded bg-[#123d52] text-sm font-bold text-white">
                       {index + 1}
                     </div>
                   </div>
-                  <div className={cn("space-y-1", count > 8 ? "p-2" : "p-3")}>
+                  <div className={cn("min-h-0 space-y-1 overflow-hidden", count > 8 ? "p-2" : "p-3")}>
                     <div className="flex items-start justify-between gap-1.5">
                       <h2 className={cn("line-clamp-2 font-bold leading-tight", count > 8 ? "text-xs" : "text-sm")}>
                         {style.title}
@@ -238,6 +238,15 @@ function getBoardPaddingClass(count: number) {
   return "p-4 sm:p-6";
 }
 
+function getPanelRowsClass(count: number) {
+  if (count <= 4) {
+    return "grid-rows-[64%_36%]";
+  }
+  if (count <= 8) {
+    return "grid-rows-[62%_38%]";
+  }
+  return "grid-rows-[58%_42%]";
+}
 function getGridClass(count: number) {
   if (count <= 4) {
     return "grid-cols-2";

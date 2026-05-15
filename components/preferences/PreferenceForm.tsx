@@ -37,7 +37,15 @@ export const defaultPreferences: Preferences = {
   numberOfStyleIdeas: 12,
   usePhotoReferenceConsent: false,
   resemblanceMode: "strong",
-  referenceFeedback: { moreLikeThis: [], notMyStyle: [], generateLater: [] },
+  referenceFeedback: {
+    selected: [],
+    deselected: [],
+    notMyStyle: [],
+    generated: [],
+    saved: [],
+    downloaded: [],
+    refreshCount: 0,
+  },
 };
 
 export function PreferenceForm({

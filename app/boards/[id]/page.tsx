@@ -76,6 +76,7 @@ export default async function BoardDetailPage({
 
   const typedBoard = board as BoardDetail;
   const selectedStyles = typedBoard.selected_styles_json ?? [];
+  const feedback = typedBoard.preferences_json?.referenceFeedback;
   const palette = typedBoard.analysis_json?.recommendedColorPalette ?? [];
   const averageMatchScore = getAverageMatchScore(selectedStyles);
   const { data: boardImages } = await supabase
@@ -141,6 +142,19 @@ export default async function BoardDetailPage({
                 </div>
               </CardContent>
             </Card>
+
+            {feedback ? (
+              <Card>
+                <CardContent className="space-y-3 p-4">
+                  <p className="text-sm font-semibold">Feedback summary</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge>Selected {feedback.selected?.length ?? selectedStyles.length}</Badge>
+                    <Badge>Not my style {feedback.notMyStyle?.length ?? 0}</Badge>
+                    <Badge>Refreshed {feedback.refreshCount ?? 0}</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
 
             {palette.length > 0 ? (
               <Card>

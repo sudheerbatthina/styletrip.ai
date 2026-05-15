@@ -1,7 +1,7 @@
 "use client";
 
-import { ReferenceLookCard, type ReferenceFeedback } from "@/components/reference/ReferenceLookCard";
-import type { ReferenceLook } from "@/lib/schemas";
+import { ReferenceLookCard } from "@/components/reference/ReferenceLookCard";
+import type { ReferenceFeedback, ReferenceLook } from "@/lib/schemas";
 
 export function ReferenceLookGrid({
   looks,

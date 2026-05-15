@@ -39,6 +39,7 @@ export function GeneratedBoard({
   onRegenerate,
   onEditPreferences,
   onSaveBoard,
+  onDownloadBoard,
   persistEnabled = false,
   saving = false,
 }: {
@@ -50,6 +51,7 @@ export function GeneratedBoard({
   onRegenerate: (instruction?: string) => void;
   onEditPreferences: () => void;
   onSaveBoard?: (boardImage: string) => void;
+  onDownloadBoard?: () => void;
   persistEnabled?: boolean;
   saving?: boolean;
 }) {
@@ -75,6 +77,7 @@ export function GeneratedBoard({
     document.body.appendChild(link);
     link.click();
     link.remove();
+    onDownloadBoard?.();
   }
 
   async function saveBoard() {

@@ -25,12 +25,26 @@ The user-facing workflow is visual-first:
 2. The app analyzes styling cues and creates an internal style plan.
 3. The app shows visual reference look cards, not a wall of fashion labels.
 4. The user selects looks they like or marks a look as not their style.
-5. Only after look selection does the app generate personalized/mock outfit panels.
-6. The frontend renders the final fashion board with React/CSS and real text.
+5. "Not my style" feedback downranks similar cards and can surface a replacement from the curated/reference pool.
+6. Only after look selection does the app generate personalized/mock outfit panels.
+7. The frontend renders the final fashion board with React/CSS and real text.
 
 The app does not rely on AI to generate the full final collage with readable text. Outfit titles, occasions, item lists, colors/fit, and labels are frontend text. This gives cleaner typography, better layout control, and reliable support for `1:1`, `4:5`, and `16:9`.
 
 For MVP, mock mode uses local curated SVG reference illustrations, deterministic match scoring, and mock outfit images. No paid APIs are called by default. Real curated/stock/catalog reference providers, AI scoring, provider routing, and paid personalized image providers are future integration points.
+
+## Feedback and Ranking
+
+The Pick Looks step keeps a lightweight feedback state in `preferences.referenceFeedback`. It tracks selected, deselected, not-my-style, generated, saved, downloaded, and refresh-count signals.
+
+In mock/curated mode, feedback is used locally:
+
+- Selected looks stay pinned near the top during refresh.
+- "Not my style" deselects the card, mutes it, reduces its match score, moves it down, and tries to replace it with an unshown curated/reference look.
+- "Refresh Looks" re-ranks the current pool using feedback without calling OpenAI, Gemini, fal, Runware, Pexels, Unsplash, or any paid provider.
+- Disliked styles, favorite colors, preferred fit, selected occasions, and style-analysis palette still affect deterministic match scores.
+
+When Supabase is configured and the user is logged in, `POST /api/style-feedback` can persist individual feedback events to the optional `style_feedback` table. Saved boards also keep the feedback summary inside `preferences_json`, so existing boards remain compatible if the table is not present yet.
 
 ## Routes
 
@@ -150,6 +164,7 @@ The active routes use mock responses unless providers are explicitly enabled lat
 2. Copy the project URL and anon key into `.env.local`.
 3. Copy the service role key into `.env.local` for server/admin workflows.
 4. Run the SQL migration in `supabase/migrations/202605120001_styletrip_saved_boards.sql`.
+5. Run `supabase/migrations/202605150001_style_feedback.sql` to enable persistent feedback events.
 
 You can run migrations with the Supabase CLI:
 
@@ -169,6 +184,7 @@ The migration creates:
 - `boards`
 - `board_images`
 - `generations`
+- `style_feedback` stores optional selected/deselected/not-my-style/generated/saved/downloaded look feedback.
 
 It also enables Row Level Security so users can only access their own profiles, photos, boards, board images, and generations.
 
@@ -201,6 +217,7 @@ If bucket creation is blocked in your Supabase environment, create them manually
 - `POST /api/generate-style-board`
 - `POST /api/refine-board`
 - `POST /api/boards/save`
+- `POST /api/style-feedback`
 - `DELETE /api/boards/[id]`
 
 `generate-style-board` and `refine-board` remain available for compatibility, but the current UI uses `generate-outfit-images` plus the frontend board renderer.
@@ -216,7 +233,7 @@ Email/password auth is implemented for MVP. Google Sign-In is intentionally not 
 - Reference providers: test Pexels, Unsplash, curated fashion catalogs, and retailer/product feeds with attribution and fallback.
 - Try-on extension: run personalized image generation only after selection, consent, and cost confirmation.
 - AI match scoring: replace the mock scorer in `lib/matching` with a provider-backed scorer after cost and privacy review.
-- User feedback: save liked/disliked reference looks to improve future recommendations.
+- User feedback: use persisted feedback across sessions to improve future recommendations and replacement quality.
 - Trip packing list: convert selected outfits into a packing checklist.
 - Multiple boards: generate separate boards for day, night, pool, airport, dinner, club, and photoshoot.
 - Google Sign-In: add Supabase OAuth after email/password MVP is stable.

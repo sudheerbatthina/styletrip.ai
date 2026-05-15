@@ -32,7 +32,7 @@ function getReferenceProviderMaxResults() {
 function getReferenceTarget(preferences: Preferences) {
   return Math.min(
     getReferenceProviderMaxResults(),
-    Math.max(8, preferences.numberOfStyleIdeas * 2),
+    Math.max(16, preferences.numberOfStyleIdeas + 12),
   );
 }
 
