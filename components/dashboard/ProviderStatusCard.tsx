@@ -12,6 +12,7 @@ type ProviderStatus = {
   referenceProvider: string;
   referenceProviderCacheEnabled: boolean;
   referenceProviderMaxResults: number;
+  referenceProviderTimeoutMs: number;
   referenceFallbackBehavior: string;
   textProvider: string;
   imageProvider: string;
@@ -89,6 +90,11 @@ export function ProviderStatusCard() {
           <StatusLine
             label="Max refs"
             value={String(status?.referenceProviderMaxResults ?? 24)}
+            loading={loading}
+          />
+          <StatusLine
+            label="Ref timeout"
+            value={`${status?.referenceProviderTimeoutMs ?? 8000}ms`}
             loading={loading}
           />
           <StatusLine label="Text provider" value={status?.textProvider ?? "unknown"} loading={loading} />

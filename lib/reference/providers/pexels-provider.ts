@@ -55,6 +55,9 @@ export async function getPexelsReferenceLooks(input: ReferenceProviderInput): Pr
     dislikedStyles: input.preferences.dislikedStyles,
     genderStyleDirection: input.preferences.genderStyleDirection,
     colors: input.analysis.recommendedColorPalette.slice(0, 5),
+    silhouettes: input.analysis.recommendedSilhouettes.slice(0, 4),
+    currentStyleProfile: input.analysis.visibleStyleProfile.currentOutfitNotes,
+    fitAdvice: input.analysis.visibleStyleProfile.fitAdvice.slice(0, 2),
   });
   const cacheKey = createReferenceCacheKey({
     provider: "pexels",
@@ -165,10 +168,15 @@ async function fetchPexelsPhotos(query: string, preferencesHash: string) {
 
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = 4500) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const timeout = setTimeout(() => controller.abort(), getReferenceProviderTimeoutMs(timeoutMs));
   try {
     return await fetch(url, { ...init, signal: controller.signal });
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function getReferenceProviderTimeoutMs(fallback: number) {
+  const value = Number(process.env.REFERENCE_PROVIDER_TIMEOUT_MS ?? 8000);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
 }

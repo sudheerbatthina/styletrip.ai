@@ -16,23 +16,29 @@ export function buildReferenceQuery({
   const genderDirection = getSimpleStyleDirection(preferences.genderStyleDirection);
   const location = getLocationCue(preferences.tripLocation);
   const fit = normalizeWords(preferences.preferredFit || "relaxed");
+  const tripType = normalizeWords(preferences.tripType || "vacation");
   const palette = [
     ...splitWords(preferences.favoriteColors),
     ...analysis.recommendedColorPalette,
     ...style.colors,
   ].map(normalizeWords).filter(Boolean).slice(0, 3);
   const items = getPracticalItems(style.items, preferences.dislikedStyles);
+  const silhouetteCue = getSilhouetteCue(analysis.recommendedSilhouettes);
+  const profileCue = getProfileCue(analysis.visibleStyleProfile.currentOutfitNotes);
   const occasionText = normalizeWords(occasion);
 
   return Array.from(
     new Set([
       genderDirection,
       location,
+      tripType,
       occasionText,
       "outfit",
       fit,
       ...palette,
       items,
+      silhouetteCue,
+      profileCue,
       getFootwearCue(style),
     ].filter(Boolean)),
   ).join(" ");
@@ -51,13 +57,19 @@ export function buildReferenceQueries(input: ReferenceQueryInput) {
   const location = getLocationCue(preferences.tripLocation);
   const fit = normalizeWords(preferences.preferredFit || "relaxed");
   const occasionText = normalizeWords(occasion);
+  const tripType = normalizeWords(preferences.tripType || "vacation");
+  const silhouetteCue = getSilhouetteCue(input.analysis.recommendedSilhouettes);
+  const profileCue = getProfileCue(input.analysis.visibleStyleProfile.currentOutfitNotes);
 
   return Array.from(
     new Set([
       base,
       `${genderDirection} ${occasionText} outfit ${fit} pants`,
+      `${genderDirection} ${location} ${tripType} outfit ${fit} fit`,
       `${genderDirection} ${location} vacation outfit ${colors}`,
       `${genderDirection} summer travel outfit neutral colors`,
+      `${genderDirection} airport outfit comfortable streetwear`,
+      `${genderDirection} outfit ${silhouetteCue} ${profileCue}`.trim(),
       `${genderDirection} casual outfit ${items} ${getFootwearCue(style)}`,
     ]),
   );
@@ -125,4 +137,35 @@ function getFootwearCue(style: StyleCardData) {
     return "loafers";
   }
   return "shoes";
+}
+
+function getSilhouetteCue(silhouettes: string[]) {
+  const text = normalizeWords(silhouettes.join(" "));
+  if (text.includes("camp")) {
+    return "camp collar shirt";
+  }
+  if (text.includes("straight")) {
+    return "straight pants";
+  }
+  if (text.includes("overshirt")) {
+    return "overshirt";
+  }
+  if (text.includes("linen")) {
+    return "linen outfit";
+  }
+  return "";
+}
+
+function getProfileCue(value: string) {
+  const text = normalizeWords(value);
+  if (text.includes("casual")) {
+    return "casual";
+  }
+  if (text.includes("relaxed")) {
+    return "relaxed";
+  }
+  if (text.includes("texture")) {
+    return "textured";
+  }
+  return "";
 }

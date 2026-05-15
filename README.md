@@ -158,6 +158,7 @@ REFERENCE_IMAGE_PROVIDER=pexels
 PEXELS_API_KEY=...
 REFERENCE_PROVIDER_MAX_RESULTS=24
 REFERENCE_PROVIDER_CACHE_ENABLED=true
+REFERENCE_PROVIDER_TIMEOUT_MS=8000
 ```
 
 To test Unsplash references:
@@ -167,6 +168,7 @@ REFERENCE_IMAGE_PROVIDER=unsplash
 UNSPLASH_ACCESS_KEY=...
 REFERENCE_PROVIDER_MAX_RESULTS=24
 REFERENCE_PROVIDER_CACHE_ENABLED=true
+REFERENCE_PROVIDER_TIMEOUT_MS=8000
 ```
 
 Leave `AI_IMAGE_PROVIDER=mock` and `ENABLE_PAID_IMAGE_GENERATION=false`; these stock reference providers do not generate personalized images.
@@ -188,6 +190,7 @@ PEXELS_API_KEY=
 UNSPLASH_ACCESS_KEY=
 REFERENCE_PROVIDER_MAX_RESULTS=24
 REFERENCE_PROVIDER_CACHE_ENABLED=true
+REFERENCE_PROVIDER_TIMEOUT_MS=8000
 ```
 
 The active routes use mock responses unless providers are explicitly enabled later. Real providers should stay behind selection, consent, pricing, and confirmation checks.

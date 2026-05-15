@@ -82,6 +82,11 @@ export function isReferenceProviderCacheEnabled() {
   return process.env.REFERENCE_PROVIDER_CACHE_ENABLED !== "false";
 }
 
+export function getReferenceProviderTimeoutMs() {
+  const value = Number(process.env.REFERENCE_PROVIDER_TIMEOUT_MS ?? 8000);
+  return Number.isFinite(value) && value > 0 ? Math.floor(value) : 8000;
+}
+
 export function getProviderStatus(providerId: AiProviderId): AiProviderStatus {
   if (providerId === "mock") {
     return { id: "mock", enabled: true };
@@ -165,6 +170,7 @@ export function getSafeProviderStatus() {
     referenceProvider,
     referenceProviderCacheEnabled: isReferenceProviderCacheEnabled(),
     referenceProviderMaxResults: getReferenceProviderMaxResults(),
+    referenceProviderTimeoutMs: getReferenceProviderTimeoutMs(),
     referenceFallbackBehavior: "External reference providers fall back to curated local references on missing keys, failures, timeouts, or too few results.",
     textProvider,
     imageProvider,
