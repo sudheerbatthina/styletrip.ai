@@ -42,6 +42,15 @@ export const styleMemorySummarySchema = z.object({
   downloadedCount: z.number().int().min(0).default(0),
 }).default({});
 
+export const providerCostMetadataSchema = z.object({
+  providerMode: z.string().optional(),
+  estimatedCostUsd: z.number().min(0).optional(),
+  imageProvider: z.string().optional(),
+  textProvider: z.string().optional(),
+  referenceProvider: z.string().optional(),
+  styleMemoryUsed: z.boolean().optional(),
+}).optional();
+
 export const imageInputSchema = z.object({
   dataUrl: z.string().min(100, "Image data is required."),
   mimeType: z.enum(["image/jpeg", "image/png", "image/webp"]),
@@ -71,6 +80,7 @@ export const preferencesSchema = z.object({
   resemblanceMode: resemblanceModeSchema.default("strong"),
   referenceFeedback: referenceFeedbackSchema.optional(),
   styleMemory: styleMemorySummarySchema.optional(),
+  providerCostMetadata: providerCostMetadataSchema,
 });
 
 export const visibleStyleProfileSchema = z.object({

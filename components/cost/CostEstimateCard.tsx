@@ -3,30 +3,15 @@
 import { ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-
-export type CostEstimateStatus = "mock" | "blocked" | "allowed";
+import type { CostEstimate } from "@/lib/cost/cost-estimator";
 
 export type CostEstimateCardProps = {
-  provider: string;
-  imageCount: number;
-  estimatedTextCostUsd?: number;
-  estimatedImageCostUsd?: number;
-  totalEstimateUsd: number;
-  maxAllowedCostUsd: number;
-  status: CostEstimateStatus;
+  estimate: CostEstimate;
 };
 
-export function CostEstimateCard({
-  provider,
-  imageCount,
-  estimatedTextCostUsd = 0,
-  estimatedImageCostUsd = 0,
-  totalEstimateUsd,
-  maxAllowedCostUsd,
-  status,
-}: CostEstimateCardProps) {
-  const isMock = status === "mock";
-  const isBlocked = status === "blocked";
+export function CostEstimateCard({ estimate }: CostEstimateCardProps) {
+  const isMock = estimate.mode === "mock";
+  const isBlocked = estimate.mode === "blocked";
 
   return (
     <Card className={isBlocked ? "border-destructive/35 bg-destructive/5" : "bg-muted/25"}>
@@ -36,9 +21,9 @@ export function CostEstimateCard({
             <p className="text-sm font-semibold">Estimated generation cost</p>
             <p className="mt-1 text-sm text-muted-foreground">
               {isMock
-                ? "No paid APIs will be called."
+                ? "Mock mode: $0. No paid APIs will be called."
                 : isBlocked
-                  ? "Paid generation is disabled by default."
+                  ? estimate.reason
                   : "Cost confirmation will be required before generation."}
             </p>
           </div>
@@ -48,12 +33,14 @@ export function CostEstimateCard({
         </div>
 
         <div className="grid grid-cols-2 gap-2 text-sm">
-          <CostLine label="Provider" value={provider} />
-          <CostLine label="Images" value={String(imageCount)} />
-          <CostLine label="Text" value={formatUsd(estimatedTextCostUsd)} />
-          <CostLine label="Image est." value={formatUsd(estimatedImageCostUsd)} />
-          <CostLine label="Total" value={formatUsd(totalEstimateUsd)} strong />
-          <CostLine label="Limit" value={formatUsd(maxAllowedCostUsd)} />
+          <CostLine label="Image provider" value={estimate.imageProvider} />
+          <CostLine label="Text provider" value={estimate.textProvider} />
+          <CostLine label="Images" value={String(estimate.numberOfImages)} />
+          <CostLine label="Text" value={formatUsd(estimate.estimatedTextCostUsd)} />
+          <CostLine label="Image est." value={formatUsd(estimate.estimatedImageCostUsd)} />
+          <CostLine label="Total" value={formatUsd(estimate.estimatedTotalCostUsd)} strong />
+          <CostLine label="Limit" value={formatUsd(estimate.maxAllowedCostUsd)} />
+          <CostLine label="State" value={estimate.mode} />
         </div>
 
         <div className="flex gap-2 rounded-md border bg-background/70 p-3 text-xs leading-5 text-muted-foreground">
@@ -61,7 +48,9 @@ export function CostEstimateCard({
           <p>
             {isMock
               ? "Mock mode uses local demo assets and keeps estimated cost at $0."
-              : "ENABLE_PAID_IMAGE_GENERATION must be true before real providers can run."}
+              : isBlocked
+                ? "ENABLE_PAID_IMAGE_GENERATION must be true before real providers can run."
+                : estimate.reason}
           </p>
         </div>
       </CardContent>

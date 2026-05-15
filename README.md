@@ -76,6 +76,10 @@ AI_IMAGE_FALLBACK_PROVIDER=
 ENABLE_PAID_IMAGE_GENERATION=false
 MAX_REAL_IMAGES_PER_BOARD=4
 MAX_ESTIMATED_COST_PER_BOARD_USD=0.25
+OPENAI_EST_IMAGE_COST_PER_IMAGE_USD=0.04
+GEMINI_EST_IMAGE_COST_PER_IMAGE_USD=0.04
+FAL_EST_IMAGE_COST_PER_IMAGE_USD=0.01
+TEXT_EST_COST_PER_REQUEST_USD=0.005
 REFERENCE_IMAGE_PROVIDER=curated
 PEXELS_API_KEY=
 UNSPLASH_ACCESS_KEY=
@@ -160,6 +164,14 @@ REFERENCE_PROVIDER_CACHE_ENABLED=true
 ```
 
 The active routes use mock responses unless providers are explicitly enabled later. Real providers should stay behind selection, consent, pricing, and confirmation checks.
+
+`GET /api/provider-status` returns safe public provider/cost status for the dashboard dev panel. It never returns API keys. The Generate step uses the same estimator shape:
+
+- `mock`: `$0`, no paid APIs called.
+- `blocked`: paid generation disabled, over limit, or otherwise unavailable.
+- `estimate`: paid generation is enabled and within configured limits; user confirmation is required before generation.
+
+For first real-provider testing later, set `MAX_REAL_IMAGES_PER_BOARD=1` and keep `MAX_ESTIMATED_COST_PER_BOARD_USD` low. Turn paid generation off again with `ENABLE_PAID_IMAGE_GENERATION=false`.
 ## Supabase Setup
 
 1. Create a Supabase project.

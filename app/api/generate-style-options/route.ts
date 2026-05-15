@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { getTextProviderId, isMockMode } from "@/lib/ai/provider-router";
+import {
+  getProviderStatus,
+  getTextProviderId,
+  isMockMode,
+  isPaidImageGenerationEnabled,
+} from "@/lib/ai/provider-router";
 import {
   styleOptionsRequestSchema,
 } from "@/lib/schemas";
@@ -23,6 +28,21 @@ export async function POST(request: Request) {
     const textProvider = getTextProviderId();
     if (isMockMode() || textProvider === "mock") {
       return NextResponse.json({ styles: mockStyleCards });
+    }
+
+    if (!isPaidImageGenerationEnabled()) {
+      return jsonError(
+        "Paid providers are disabled. Use NEXT_PUBLIC_MOCK_MODE=true or AI_TEXT_PROVIDER=mock for local testing.",
+        402,
+      );
+    }
+
+    const providerStatus = getProviderStatus(textProvider);
+    if (!providerStatus.enabled) {
+      return jsonError(
+        providerStatus.reason ?? `${textProvider} style option provider is not enabled yet.`,
+        providerStatus.missingKey ? 400 : 501,
+      );
     }
 
     return jsonError(

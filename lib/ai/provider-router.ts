@@ -4,7 +4,11 @@ export type AiProviderStatus = {
   id: AiProviderId;
   enabled: boolean;
   reason?: string;
+  missingKey?: boolean;
+  missingKeyName?: string;
 };
+
+export type ReferenceProviderId = "curated" | "pexels" | "unsplash";
 
 function normalizeProvider(value: string | undefined, fallback: AiProviderId): AiProviderId {
   if (value === "openai" || value === "gemini" || value === "fal" || value === "mock") {
@@ -52,6 +56,14 @@ export function getMaxEstimatedCostPerBoardUsd() {
   return Number.isFinite(value) && value >= 0 ? value : 0.25;
 }
 
+export function getReferenceProviderId(): ReferenceProviderId {
+  const provider = process.env.REFERENCE_IMAGE_PROVIDER;
+  if (provider === "pexels" || provider === "unsplash" || provider === "curated") {
+    return provider;
+  }
+  return "curated";
+}
+
 export function getProviderStatus(providerId: AiProviderId): AiProviderStatus {
   if (providerId === "mock") {
     return { id: "mock", enabled: true };
@@ -70,6 +82,8 @@ export function getProviderStatus(providerId: AiProviderId): AiProviderStatus {
     return {
       id: providerId,
       enabled: false,
+      missingKey: true,
+      missingKeyName: missingKey,
       reason: `${missingKey} is not configured for ${providerId}.`,
     };
   }
@@ -81,7 +95,7 @@ export function getProviderStatus(providerId: AiProviderId): AiProviderStatus {
   };
 }
 
-function getMissingProviderKey(providerId: AiProviderId) {
+export function getMissingProviderKey(providerId: AiProviderId) {
   if (providerId === "openai" && !process.env.OPENAI_API_KEY) {
     return "OPENAI_API_KEY";
   }
@@ -92,4 +106,64 @@ function getMissingProviderKey(providerId: AiProviderId) {
     return "FAL_KEY";
   }
   return null;
+}
+
+export function getReferenceProviderStatus(providerId = getReferenceProviderId()) {
+  if (providerId === "curated") {
+    return {
+      id: providerId,
+      enabled: true,
+      missingKey: false,
+    };
+  }
+
+  const missingKey =
+    providerId === "pexels" && !process.env.PEXELS_API_KEY
+      ? "PEXELS_API_KEY"
+      : providerId === "unsplash" && !process.env.UNSPLASH_ACCESS_KEY
+        ? "UNSPLASH_ACCESS_KEY"
+        : null;
+
+  return {
+    id: providerId,
+    enabled: !missingKey,
+    missingKey: Boolean(missingKey),
+    missingKeyName: missingKey ?? undefined,
+    reason: missingKey
+      ? `${missingKey} is not configured for ${providerId}. Curated fallback will be used.`
+      : undefined,
+  };
+}
+
+export function getSafeProviderStatus() {
+  const textProvider = getTextProviderId();
+  const imageProvider = getImageProviderId();
+  const fallbackImageProvider = getImageFallbackProviderId();
+  const referenceProvider = getReferenceProviderId();
+
+  return {
+    mockMode: isMockMode(),
+    paidGenerationEnabled: isPaidImageGenerationEnabled(),
+    referenceProvider,
+    textProvider,
+    imageProvider,
+    fallbackImageProvider,
+    maxRealImagesPerBoard: getMaxRealImagesPerBoard(),
+    maxEstimatedCostPerBoardUsd: getMaxEstimatedCostPerBoardUsd(),
+    providerStatus: {
+      text: getProviderStatus(textProvider),
+      image: getProviderStatus(imageProvider),
+      fallbackImage: fallbackImageProvider
+        ? getProviderStatus(fallbackImageProvider)
+        : null,
+      reference: getReferenceProviderStatus(referenceProvider),
+    },
+    missingKeys: {
+      openai: Boolean(getMissingProviderKey("openai")),
+      gemini: Boolean(getMissingProviderKey("gemini")),
+      fal: Boolean(getMissingProviderKey("fal")),
+      pexels: !process.env.PEXELS_API_KEY,
+      unsplash: !process.env.UNSPLASH_ACCESS_KEY,
+    },
+  };
 }

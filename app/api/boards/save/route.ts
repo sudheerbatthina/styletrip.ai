@@ -206,6 +206,12 @@ export async function POST(request: Request) {
         numberOfStyles: selectedStyles.length,
         aspectRatio: preferences.aspectRatio,
         resemblanceMode: preferences.resemblanceMode,
+        providerMode: preferences.providerCostMetadata?.providerMode ?? "mock",
+        estimatedCostUsd: preferences.providerCostMetadata?.estimatedCostUsd ?? 0,
+        imageProvider: preferences.providerCostMetadata?.imageProvider ?? "mock",
+        textProvider: preferences.providerCostMetadata?.textProvider ?? "mock",
+        referenceProvider: preferences.providerCostMetadata?.referenceProvider ?? "curated",
+        styleMemoryUsed: preferences.providerCostMetadata?.styleMemoryUsed ?? false,
       },
     });
     if (generationInsert.error) {

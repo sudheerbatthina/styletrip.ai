@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { StepHeader } from "@/components/common/StepHeader";
 import { CostEstimateCard } from "@/components/cost/CostEstimateCard";
+import { GenerationConfirmDialog } from "@/components/cost/GenerationConfirmDialog";
 import { PreferenceForm, defaultPreferences } from "@/components/preferences/PreferenceForm";
 import { ReferenceFeedbackBar } from "@/components/reference/ReferenceFeedbackBar";
 import { ReferenceLookGrid } from "@/components/reference/ReferenceLookGrid";
@@ -31,6 +32,7 @@ import { ToastProvider, useToast } from "@/components/ui/toast";
 import {
   emptyStyleMemory,
 } from "@/lib/feedback/feedback-memory";
+import type { CostEstimate } from "@/lib/cost/cost-estimator";
 import type {
   ImageInput,
   FeedbackType,
@@ -84,6 +86,25 @@ const emptyFeedback: ReferenceFeedback = {
 };
 const mockMode = process.env.NEXT_PUBLIC_MOCK_MODE === "true";
 
+type ProviderStatusResponse = {
+  referenceProvider: string;
+  costEstimate: CostEstimate;
+};
+
+const fallbackCostEstimate: CostEstimate = {
+  mode: "mock",
+  provider: "mock",
+  imageProvider: "mock",
+  textProvider: "mock",
+  numberOfImages: 0,
+  estimatedTextCostUsd: 0,
+  estimatedImageCostUsd: 0,
+  estimatedTotalCostUsd: 0,
+  maxAllowedCostUsd: 0.25,
+  isAllowed: true,
+  reason: "Mock mode: $0. No paid APIs will be called.",
+};
+
 export function BoardBuilder({
   persistEnabled = false,
   onSaveBoard,
@@ -117,6 +138,9 @@ function StyleTripApp({
   const [styleTarget, setStyleTarget] = useState(12);
   const [feedback, setFeedback] = useState<ReferenceFeedback>(emptyFeedback);
   const [styleMemory, setStyleMemory] = useState<StyleMemorySummary>(emptyStyleMemory);
+  const [providerStatus, setProviderStatus] = useState<ProviderStatusResponse | null>(null);
+  const [showGenerationConfirm, setShowGenerationConfirm] = useState(false);
+  const [pendingGenerationInstruction, setPendingGenerationInstruction] = useState<string | undefined>();
   const [outfitImages, setOutfitImages] = useState<OutfitImage[]>([]);
   const [saving, setSaving] = useState(false);
   const [history] = useState<GeneratedHistoryItem[]>(() => {
@@ -184,6 +208,30 @@ function StyleTripApp({
       cancelled = true;
     };
   }, [persistEnabled]);
+
+  async function loadProviderStatus(imageCount: number) {
+    try {
+      const response = await fetch(`/api/provider-status?imageCount=${imageCount}`, {
+        method: "GET",
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        return;
+      }
+      const data = (await response.json()) as ProviderStatusResponse;
+      setProviderStatus(data);
+    } catch {
+      // Provider status is informational; route-level guards remain authoritative.
+    }
+  }
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      void loadProviderStatus(selectedLooks.length || styleTarget);
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
+  }, [selectedLooks.length, styleTarget]);
 
   async function postJson<T>(url: string, payload: unknown): Promise<T> {
     const response = await fetch(url, {
@@ -401,12 +449,47 @@ function StyleTripApp({
     });
   }
 
-  async function handleGenerateBoard(instruction?: string) {
+  function getPreferencesWithProviderMetadata() {
+    const estimate = providerStatus?.costEstimate ?? fallbackCostEstimate;
+    return {
+      ...preferencesWithFeedback,
+      providerCostMetadata: {
+        providerMode: estimate.mode,
+        estimatedCostUsd: estimate.estimatedTotalCostUsd,
+        imageProvider: estimate.imageProvider,
+        textProvider: estimate.textProvider,
+        referenceProvider: providerStatus?.referenceProvider ?? "curated",
+        styleMemoryUsed:
+          styleMemory.selectedCount +
+            styleMemory.rejectedCount +
+            styleMemory.savedCount +
+            styleMemory.downloadedCount >
+          0,
+      },
+    };
+  }
+
+  async function handleGenerateBoard(instruction?: string, confirmed = false) {
     if (!image || !analysis || selectedLooks.length < styleTarget) {
       toast({
         title: `Pick ${styleTarget} looks`,
         description: "Select the number of looks you want to generate before continuing.",
       });
+      return;
+    }
+
+    const estimate = providerStatus?.costEstimate ?? fallbackCostEstimate;
+    if (estimate.mode === "blocked") {
+      toast({
+        title: "Generation blocked",
+        description: estimate.reason,
+      });
+      return;
+    }
+
+    if (estimate.mode === "estimate" && !confirmed) {
+      setPendingGenerationInstruction(instruction);
+      setShowGenerationConfirm(true);
       return;
     }
 
@@ -418,7 +501,7 @@ function StyleTripApp({
         image,
         analysis,
         selectedStyles: selectedLooks,
-        preferences: preferencesWithFeedback,
+        preferences: getPreferencesWithProviderMetadata(),
         aspectRatio: preferences.aspectRatio,
         editInstruction: instruction,
       });
@@ -467,7 +550,10 @@ function StyleTripApp({
         outfitImages,
         analysis,
         selectedStyles: selectedLooks,
-        preferences: { ...preferences, referenceFeedback: savedFeedback },
+        preferences: {
+          ...getPreferencesWithProviderMetadata(),
+          referenceFeedback: savedFeedback,
+        },
       });
       setFeedback(savedFeedback);
       setPreferences((current) => ({
@@ -673,13 +759,7 @@ function StyleTripApp({
                     {selectedLooks.length} looks ready
                   </h2>
                   <CostEstimateCard
-                    provider={mockMode ? "mock" : "configured provider"}
-                    imageCount={selectedLooks.length}
-                    totalEstimateUsd={0}
-                    estimatedTextCostUsd={0}
-                    estimatedImageCostUsd={0}
-                    maxAllowedCostUsd={0.25}
-                    status={mockMode ? "mock" : "blocked"}
+                    estimate={providerStatus?.costEstimate ?? fallbackCostEstimate}
                   />
                   <p className="text-sm leading-6 text-muted-foreground">
                     The board is generated as AI outfit inspiration, not an exact
@@ -689,7 +769,11 @@ function StyleTripApp({
                   <div className="flex flex-col gap-2">
                     <Button
                       size="lg"
-                      disabled={loading || selectedLooks.length < styleTarget}
+                      disabled={
+                        loading ||
+                        selectedLooks.length < styleTarget ||
+                        providerStatus?.costEstimate.mode === "blocked"
+                      }
                       onClick={() => void handleGenerateBoard()}
                     >
                       {loading ? (
@@ -719,7 +803,7 @@ function StyleTripApp({
             />
             <GeneratedBoard
               analysis={analysis}
-              preferences={preferencesWithFeedback}
+              preferences={getPreferencesWithProviderMetadata()}
               selectedStyles={selectedLooks}
               outfitImages={outfitImages}
               loading={loading}
@@ -741,6 +825,20 @@ function StyleTripApp({
             {history.length > 1 ? <HistoryGallery history={history} /> : null}
           </div>
         ) : null}
+        <GenerationConfirmDialog
+          open={showGenerationConfirm}
+          loading={loading}
+          estimate={providerStatus?.costEstimate ?? fallbackCostEstimate}
+          onCancel={() => {
+            setShowGenerationConfirm(false);
+            setPendingGenerationInstruction(undefined);
+          }}
+          onConfirm={() => {
+            setShowGenerationConfirm(false);
+            void handleGenerateBoard(pendingGenerationInstruction, true);
+            setPendingGenerationInstruction(undefined);
+          }}
+        />
       </section>
     </main>
   );

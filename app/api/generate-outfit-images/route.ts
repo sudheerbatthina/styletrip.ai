@@ -1,9 +1,5 @@
 import { NextResponse } from "next/server";
-import {
-  getImageProviderId,
-  getProviderStatus,
-  isMockMode,
-} from "@/lib/ai/provider-router";
+import { getImageProviderId, getProviderStatus } from "@/lib/ai/provider-router";
 import { estimateBoardGenerationCost } from "@/lib/cost/cost-estimator";
 import { buildMockOutfitImage } from "@/lib/mock-data";
 import {
@@ -29,13 +25,11 @@ export async function POST(request: Request) {
     const { selectedStyles } = parsed.data;
     const imageProvider = getImageProviderId();
     const costEstimate = estimateBoardGenerationCost({
-      provider: imageProvider,
       imageCount: selectedStyles.length,
-      mockMode: isMockMode(),
     });
 
-    if (costEstimate.status === "blocked") {
-      return jsonError(costEstimate.message, 402);
+    if (costEstimate.mode === "blocked") {
+      return jsonError(costEstimate.reason, 402);
     }
 
     if (imageProvider === "mock") {

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { Calendar, MapPin, Plus } from "lucide-react";
 import { AppNav } from "@/components/common/AppNav";
 import { ConfigWarning } from "@/components/common/ConfigWarning";
+import { ProviderStatusCard } from "@/components/dashboard/ProviderStatusCard";
 import { StyleMemoryCard } from "@/components/dashboard/StyleMemoryCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -105,6 +106,7 @@ export default async function DashboardPage() {
         </div>
 
         <StyleMemoryCard />
+        <ProviderStatusCard />
 
         {boardsWithImages.length === 0 ? (
           <Card>
