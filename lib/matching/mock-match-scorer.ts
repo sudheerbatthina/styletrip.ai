@@ -1,5 +1,6 @@
 import type { MatchScoringInput } from "@/lib/matching/match-scorer";
 import { sortLooksByMatch } from "@/lib/matching/match-scorer";
+import { applyStyleMemoryToReferenceLooks } from "@/lib/feedback/feedback-memory";
 import type { ReferenceLook } from "@/lib/schemas";
 
 function normalize(value: string) {
@@ -122,5 +123,7 @@ export function scoreMockReferenceLooks({
     };
   });
 
-  return sortLooksByMatch(scored);
+  return sortLooksByMatch(
+    applyStyleMemoryToReferenceLooks(scored, preferences.styleMemory),
+  );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -28,6 +28,9 @@ import {
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ToastProvider, useToast } from "@/components/ui/toast";
+import {
+  emptyStyleMemory,
+} from "@/lib/feedback/feedback-memory";
 import type {
   ImageInput,
   FeedbackType,
@@ -40,6 +43,7 @@ import type {
   ReferenceLooksResponse,
   SelectableStyle,
   StyleAnalysis,
+  StyleMemorySummary,
 } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 
@@ -112,6 +116,7 @@ function StyleTripApp({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [styleTarget, setStyleTarget] = useState(12);
   const [feedback, setFeedback] = useState<ReferenceFeedback>(emptyFeedback);
+  const [styleMemory, setStyleMemory] = useState<StyleMemorySummary>(emptyStyleMemory);
   const [outfitImages, setOutfitImages] = useState<OutfitImage[]>([]);
   const [saving, setSaving] = useState(false);
   const [history] = useState<GeneratedHistoryItem[]>(() => {
@@ -144,9 +149,41 @@ function StyleTripApp({
     [referenceLooks, visibleLookIds],
   );
   const preferencesWithFeedback = useMemo(
-    () => ({ ...preferences, referenceFeedback: feedback }),
-    [feedback, preferences],
+    () => ({ ...preferences, referenceFeedback: feedback, styleMemory }),
+    [feedback, preferences, styleMemory],
   );
+
+  useEffect(() => {
+    if (!persistEnabled) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadStyleMemory() {
+      try {
+        const response = await fetch("/api/style-feedback", {
+          method: "GET",
+          cache: "no-store",
+        });
+        if (!response.ok) {
+          return;
+        }
+        const data = (await response.json()) as { memory?: StyleMemorySummary };
+        if (!cancelled && data.memory) {
+          setStyleMemory(data.memory);
+        }
+      } catch {
+        // Style memory is optional; local feedback keeps the builder usable.
+      }
+    }
+
+    void loadStyleMemory();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [persistEnabled]);
 
   async function postJson<T>(url: string, payload: unknown): Promise<T> {
     const response = await fetch(url, {
@@ -611,6 +648,8 @@ function StyleTripApp({
                 looks={visibleLooks}
                 selectedIds={selectedIds}
                 feedback={feedback}
+                styleMemory={styleMemory}
+                showDebug={mockMode || process.env.NODE_ENV === "development"}
                 onToggle={toggleLook}
                 onFeedback={toggleFeedback}
               />
@@ -802,7 +841,10 @@ function getLookDisplayGroup(
   return 1;
 }
 
-function getAdjustedMatchScore(look: ReferenceLook, feedback: ReferenceFeedback) {
+function getAdjustedMatchScore(
+  look: ReferenceLook,
+  feedback: ReferenceFeedback,
+) {
   return Math.max(
     0,
     look.overallMatchScore - (feedback.notMyStyle.includes(look.id) ? 32 : 0),

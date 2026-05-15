@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
+import { loadStyleFeedbackMemory } from "@/lib/feedback/feedback-service";
 import { getReferenceLooksForPlan } from "@/lib/reference/reference-provider";
 import {
   referenceLooksRequestSchema,
   referenceLooksResponseSchema,
 } from "@/lib/schemas";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
@@ -20,7 +22,30 @@ export async function POST(request: Request) {
       return jsonError(parsed.error.errors[0]?.message ?? "Invalid request.");
     }
 
-    const result = await getReferenceLooksForPlan(parsed.data);
+    let preferences = parsed.data.preferences;
+
+    try {
+      const supabase = await createSupabaseServerClient();
+      if (supabase) {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user) {
+          const memoryResult = await loadStyleFeedbackMemory(supabase, user.id);
+          preferences = {
+            ...preferences,
+            styleMemory: memoryResult.memory,
+          };
+        }
+      }
+    } catch (error) {
+      console.warn("Style memory unavailable; continuing with local feedback only.", error);
+    }
+
+    const result = await getReferenceLooksForPlan({
+      ...parsed.data,
+      preferences,
+    });
     return NextResponse.json(referenceLooksResponseSchema.parse(result));
   } catch (error) {
     console.error("generate-reference-looks failed", error);

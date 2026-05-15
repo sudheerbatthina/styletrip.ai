@@ -44,7 +44,9 @@ In mock/curated mode, feedback is used locally:
 - "Refresh Looks" re-ranks the current pool using feedback without calling OpenAI, Gemini, fal, Runware, Pexels, Unsplash, or any paid provider.
 - Disliked styles, favorite colors, preferred fit, selected occasions, and style-analysis palette still affect deterministic match scores.
 
-When Supabase is configured and the user is logged in, `POST /api/style-feedback` can persist individual feedback events to the optional `style_feedback` table. Saved boards also keep the feedback summary inside `preferences_json`, so existing boards remain compatible if the table is not present yet.
+When Supabase is configured and the user is logged in, `/api/style-feedback` can persist and load individual feedback events from the optional `style_feedback` table. The app derives a compact Style Memory from those rows: liked/disliked titles, colors, fits, occasions, plus selected/rejected/saved/downloaded counts. Future reference discovery uses that memory to boost similar selected/saved/downloaded looks and downrank patterns marked "Not my style."
+
+The Dashboard includes a compact Style Memory card with liked colors, disliked colors, liked fits, disliked fits, recent selected styles, recent rejected styles, and a reset button. Reset deletes the current user's `style_feedback` rows after confirmation. If the migration has not been run, the app gracefully keeps local-only feedback and still allows board creation.
 
 ## Routes
 
@@ -217,7 +219,9 @@ If bucket creation is blocked in your Supabase environment, create them manually
 - `POST /api/generate-style-board`
 - `POST /api/refine-board`
 - `POST /api/boards/save`
-- `POST /api/style-feedback`
+- `GET /api/style-feedback` loads Style Memory for the current user.
+- `POST /api/style-feedback` saves a feedback event opportunistically.
+- `DELETE /api/style-feedback` resets the current user's Style Memory.
 - `DELETE /api/boards/[id]`
 
 `generate-style-board` and `refine-board` remain available for compatibility, but the current UI uses `generate-outfit-images` plus the frontend board renderer.

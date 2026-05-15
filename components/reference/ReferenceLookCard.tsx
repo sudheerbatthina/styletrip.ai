@@ -6,7 +6,11 @@ import { Check, ThumbsDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import type { ReferenceFeedback, ReferenceLook } from "@/lib/schemas";
+import {
+  emptyStyleMemory,
+  scoreLookWithStyleMemory,
+} from "@/lib/feedback/feedback-memory";
+import type { ReferenceFeedback, ReferenceLook, StyleMemorySummary } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 
 export function ReferenceLookCard({
@@ -14,6 +18,8 @@ export function ReferenceLookCard({
   selected,
   disabled,
   feedback,
+  styleMemory = emptyStyleMemory,
+  showDebug,
   onToggle,
   onFeedback,
 }: {
@@ -21,10 +27,13 @@ export function ReferenceLookCard({
   selected: boolean;
   disabled?: boolean;
   feedback: ReferenceFeedback;
+  styleMemory?: StyleMemorySummary;
+  showDebug?: boolean;
   onToggle: () => void;
   onFeedback: (kind: keyof ReferenceFeedback, id: string) => void;
 }) {
   const disliked = feedback.notMyStyle.includes(look.id);
+  const memoryScore = scoreLookWithStyleMemory(look, styleMemory);
   const matchTags = look.matchTags.slice(0, 2);
   const whyThisWorks = look.whyThisMatches[0] ?? look.whyItFits;
   const matchScore = Math.max(
@@ -33,6 +42,10 @@ export function ReferenceLookCard({
   );
   const sourceLabel = look.sourceName || look.source;
   const attribution = look.attributionText || (look.photographer ? `Photo by ${look.photographer}` : "");
+  const debugBaseScore = Math.max(
+    0,
+    Math.min(100, memoryScore.baseScore - memoryScore.feedbackBoost + memoryScore.feedbackPenalty),
+  );
 
   return (
     <Card
@@ -110,6 +123,32 @@ export function ReferenceLookCard({
           </p>
           <p className="mt-1 line-clamp-2 text-sm leading-6">{whyThisWorks}</p>
         </div>
+
+        {showDebug ? (
+          <details className="rounded-md border bg-background p-3 text-xs leading-5 text-muted-foreground">
+            <summary className="cursor-pointer font-semibold text-foreground">
+              Why ranked this way
+            </summary>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              <span>Base {debugBaseScore}</span>
+              <span>Boost +{memoryScore.feedbackBoost}</span>
+              <span>Penalty -{memoryScore.feedbackPenalty + (disliked ? 32 : 0)}</span>
+            </div>
+            <p className="mt-2 font-semibold text-foreground">
+              Final {matchScore}% match
+            </p>
+            <ul className="mt-2 list-disc space-y-1 pl-4">
+              {(memoryScore.reasons.length > 0
+                ? memoryScore.reasons
+                : look.whyThisMatches
+              )
+                .slice(0, 3)
+                .map((reason) => (
+                  <li key={reason}>{reason}</li>
+                ))}
+            </ul>
+          </details>
+        ) : null}
       </div>
 
       <div className="grid gap-2 border-t bg-muted/25 p-3 sm:grid-cols-[minmax(0,1fr)_auto]">

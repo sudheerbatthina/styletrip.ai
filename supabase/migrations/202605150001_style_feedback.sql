@@ -1,3 +1,5 @@
+create extension if not exists "pgcrypto";
+
 create table if not exists public.style_feedback (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -24,6 +26,15 @@ create table if not exists public.style_feedback (
 
 create index if not exists style_feedback_user_created_idx
 on public.style_feedback (user_id, created_at desc);
+
+create index if not exists style_feedback_user_idx
+on public.style_feedback (user_id);
+
+create index if not exists style_feedback_type_idx
+on public.style_feedback (feedback_type);
+
+create index if not exists style_feedback_created_idx
+on public.style_feedback (created_at desc);
 
 create index if not exists style_feedback_board_idx
 on public.style_feedback (board_id);

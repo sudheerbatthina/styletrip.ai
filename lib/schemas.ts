@@ -27,6 +27,21 @@ export const referenceFeedbackSchema = z.object({
   refreshCount: z.coerce.number().int().min(0).default(0),
 }).default({});
 
+export const styleMemorySummarySchema = z.object({
+  likedTitles: z.array(z.string()).default([]),
+  dislikedTitles: z.array(z.string()).default([]),
+  likedColors: z.array(z.string()).default([]),
+  dislikedColors: z.array(z.string()).default([]),
+  likedFits: z.array(z.string()).default([]),
+  dislikedFits: z.array(z.string()).default([]),
+  likedOccasions: z.array(z.string()).default([]),
+  dislikedOccasions: z.array(z.string()).default([]),
+  selectedCount: z.number().int().min(0).default(0),
+  rejectedCount: z.number().int().min(0).default(0),
+  savedCount: z.number().int().min(0).default(0),
+  downloadedCount: z.number().int().min(0).default(0),
+}).default({});
+
 export const imageInputSchema = z.object({
   dataUrl: z.string().min(100, "Image data is required."),
   mimeType: z.enum(["image/jpeg", "image/png", "image/webp"]),
@@ -55,6 +70,7 @@ export const preferencesSchema = z.object({
   usePhotoReferenceConsent: z.boolean().default(false),
   resemblanceMode: resemblanceModeSchema.default("strong"),
   referenceFeedback: referenceFeedbackSchema.optional(),
+  styleMemory: styleMemorySummarySchema.optional(),
 });
 
 export const visibleStyleProfileSchema = z.object({
@@ -213,6 +229,7 @@ export type StyleCardData = z.infer<typeof styleCardSchema>;
 export type InternalStylePlan = z.infer<typeof internalStylePlanSchema>;
 export type ReferenceLook = z.infer<typeof referenceLookSchema>;
 export type ReferenceFeedback = z.infer<typeof referenceFeedbackSchema>;
+export type StyleMemorySummary = z.infer<typeof styleMemorySummarySchema>;
 export type FeedbackType = z.infer<typeof feedbackTypeSchema>;
 export type SelectableStyle = z.infer<typeof selectableStyleSchema>;
 export type StyleOptionsResponse = z.infer<typeof styleOptionsResponseSchema>;
