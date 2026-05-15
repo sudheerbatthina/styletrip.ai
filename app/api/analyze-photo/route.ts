@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { getOpenAIClient, getTextModel, isMockMode } from "@/lib/openai";
-import { buildStyleAnalysisPrompt } from "@/lib/prompts/style-analysis";
-import { analyzePhotoRequestSchema, analysisSchema } from "@/lib/schemas";
+import { getTextProviderId, isMockMode } from "@/lib/ai/provider-router";
+import { analyzePhotoRequestSchema } from "@/lib/schemas";
 import { mockAnalysis } from "@/lib/mock-data";
 
 export const runtime = "nodejs";
@@ -19,40 +18,15 @@ export async function POST(request: Request) {
       return jsonError(parsed.error.errors[0]?.message ?? "Invalid request.");
     }
 
-    if (isMockMode()) {
+    const textProvider = getTextProviderId();
+    if (isMockMode() || textProvider === "mock") {
       return NextResponse.json(mockAnalysis);
     }
 
-    const { image, preferences } = parsed.data;
-    const client = getOpenAIClient();
-
-    const completion = await client.chat.completions.create({
-      model: getTextModel(),
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: buildStyleAnalysisPrompt(preferences) },
-            {
-              type: "image_url",
-              image_url: {
-                url: image.dataUrl,
-                detail: "low",
-              },
-            },
-          ],
-        },
-      ],
-    } as never);
-
-    const content = completion.choices[0]?.message?.content;
-    if (!content) {
-      return jsonError("The analysis model returned no content.", 502);
-    }
-
-    const analysis = analysisSchema.parse(JSON.parse(content));
-    return NextResponse.json(analysis);
+    return jsonError(
+      `${textProvider} text analysis provider is not enabled yet. Use NEXT_PUBLIC_MOCK_MODE=true or AI_TEXT_PROVIDER=mock for local testing.`,
+      501,
+    );
   } catch (error) {
     console.error("analyze-photo failed", error);
     return jsonError(

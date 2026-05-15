@@ -27,6 +27,7 @@ export const FashionBoardRenderer = forwardRef<
   ref,
 ) {
   const aspectRatio = preferences.aspectRatio;
+  const count = selectedStyles.length;
   const imageByStyle = new Map(
     outfitImages.map((outfitImage) => [outfitImage.styleId, outfitImage.image]),
   );
@@ -43,23 +44,33 @@ export const FashionBoardRenderer = forwardRef<
     <div
       ref={ref}
       className={cn(
-        "overflow-hidden bg-[#f8f3ea] text-[#162733]",
+        "mx-auto w-full max-w-full overflow-hidden bg-[#f8f3ea] text-[#162733] shadow-sm",
         getBoardRatioClass(aspectRatio),
       )}
-      style={{
-        width: aspectRatio === "16:9" ? 1600 : aspectRatio === "4:5" ? 1280 : 1400,
-      }}
+      style={{ maxWidth: getBoardMaxWidth(aspectRatio) }}
     >
-      <div className="flex h-full flex-col p-10">
-        <header className="mb-6 flex items-start justify-between gap-8 border-b border-[#c9bbab] pb-5">
-          <div>
-            <p className="text-2xl font-bold text-[#0f5366]">StyleTrip AI</p>
-            <h1 className="mt-2 text-5xl font-bold tracking-normal">
+      <div className={cn("flex h-full min-h-0 flex-col", getBoardPaddingClass(count))}>
+        <header
+          className={cn(
+            "flex shrink-0 items-start justify-between gap-4 border-b border-[#c9bbab]",
+            count > 8 ? "mb-2 pb-2" : "mb-4 pb-3",
+          )}
+        >
+          <div className="min-w-0">
+            <p className={cn("font-bold text-[#0f5366]", count > 8 ? "text-sm" : "text-base")}>
+              StyleTrip AI
+            </p>
+            <h1
+              className={cn(
+                "mt-1 truncate font-bold tracking-normal",
+                count > 8 ? "text-xl" : "text-2xl sm:text-3xl",
+              )}
+            >
               {preferences.tripLocation} {preferences.tripType} lookbook
             </h1>
           </div>
-          <div className="text-right text-xl leading-8 text-[#52616b]">
-            <p>{selectedStyles.length} visual looks</p>
+          <div className={cn("shrink-0 text-right leading-5 text-[#52616b]", count > 8 ? "text-xs" : "text-sm")}>
+            <p>{count} visual looks</p>
             <p>{aspectRatio} board</p>
             <p>{formatResemblance(preferences.resemblanceMode)}</p>
           </div>
@@ -67,68 +78,80 @@ export const FashionBoardRenderer = forwardRef<
 
         <section
           className={cn(
-            "grid flex-1 gap-4",
-            getGridClass(aspectRatio, selectedStyles.length),
+            "grid min-h-0 flex-1 auto-rows-fr gap-2",
+            getGridClass(count),
           )}
         >
-          {selectedStyles.map((style, index) => (
-            <article
-              key={style.id}
-              className="min-h-0 overflow-hidden rounded-lg border border-[#c9bbab] bg-white"
-            >
-              <div className="grid h-full grid-rows-[minmax(0,1fr)_auto]">
-                <div className="relative min-h-0 bg-[#eee6da]">
-                  {imageByStyle.get(style.id) ? (
-                    <img
-                      src={imageByStyle.get(style.id)}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  ) : null}
-                  <div className="absolute left-3 top-3 flex h-10 w-10 items-center justify-center rounded-md bg-[#123d52] text-xl font-bold text-white">
-                    {index + 1}
-                  </div>
-                </div>
-                <div className="space-y-2 p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <h2 className="text-lg font-bold leading-tight">{style.title}</h2>
-                    <div className="flex shrink-0 flex-col items-end gap-1">
-                      {getMatchScore(style) ? (
-                        <span className="rounded bg-[#123d52] px-2 py-1 text-xs font-semibold text-white">
-                          {getMatchScore(style)}% match
-                        </span>
-                      ) : null}
-                      <span className="rounded bg-[#eadfce] px-2 py-1 text-xs font-semibold">
-                        {getFit(style)}
-                      </span>
+          {selectedStyles.map((style, index) => {
+            const matchScore = getMatchScore(style);
+            const image = imageByStyle.get(style.id);
+
+            return (
+              <article
+                key={style.id}
+                className="min-h-0 overflow-hidden rounded-md border border-[#c9bbab] bg-[#fffaf2]"
+              >
+                <div className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto]">
+                  <div className="relative min-h-0 bg-[#f1e8da]">
+                    {image ? (
+                      <img
+                        src={image}
+                        alt=""
+                        className="h-full w-full object-contain p-1.5"
+                      />
+                    ) : null}
+                    <div className="absolute left-2 top-2 flex h-7 w-7 items-center justify-center rounded bg-[#123d52] text-sm font-bold text-white">
+                      {index + 1}
                     </div>
                   </div>
-                  <p className="text-xs font-semibold uppercase tracking-normal text-[#0f5366]">
-                    {getOccasion(style)}
-                  </p>
-                  <p className="text-sm leading-5 text-[#52616b]">
-                    {getItems(style).slice(0, 4).join(" · ")}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {getColors(style).slice(0, 3).map((color) => (
-                      <span
-                        key={color}
-                        className="rounded bg-[#eadfce] px-2 py-1 text-xs font-semibold"
-                      >
-                        {color}
-                      </span>
-                    ))}
+                  <div className={cn("space-y-1", count > 8 ? "p-2" : "p-3")}>
+                    <div className="flex items-start justify-between gap-1.5">
+                      <h2 className={cn("line-clamp-2 font-bold leading-tight", count > 8 ? "text-xs" : "text-sm")}>
+                        {style.title}
+                      </h2>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        {matchScore ? (
+                          <span className="rounded bg-[#123d52] px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                            {matchScore}% match
+                          </span>
+                        ) : null}
+                        <span className="rounded bg-[#eadfce] px-1.5 py-0.5 text-[10px] font-semibold">
+                          {getFit(style)}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="truncate text-[10px] font-semibold uppercase tracking-normal text-[#0f5366]">
+                      {getOccasion(style)}
+                    </p>
+                    <p className={cn("text-[#52616b]", count > 8 ? "line-clamp-1 text-[10px]" : "line-clamp-2 text-xs")}>
+                      {getItems(style).slice(0, 3).join(" / ")}
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {getColors(style).slice(0, count > 8 ? 2 : 3).map((color) => (
+                        <span
+                          key={color}
+                          className="rounded bg-[#eadfce] px-1.5 py-0.5 text-[10px] font-semibold"
+                        >
+                          {color}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </section>
 
-        <footer className="mt-6 grid gap-4 border-t border-[#c9bbab] pt-5 text-lg leading-7 lg:grid-cols-3">
-          <FooterGroup title="Best colors" items={palette} />
-          <FooterGroup title="Occasions" items={occasions} />
-          <FooterGroup title="Fits" items={fits} />
+        <footer
+          className={cn(
+            "grid shrink-0 gap-2 border-t border-[#c9bbab] leading-5 sm:grid-cols-3",
+            count > 8 ? "mt-2 pt-2 text-xs" : "mt-4 pt-3 text-sm",
+          )}
+        >
+          <FooterGroup title="Best colors" items={palette} compact={count > 8} />
+          <FooterGroup title="Occasions" items={occasions} compact={count > 8} />
+          <FooterGroup title="Fits" items={fits} compact={count > 8} />
         </footer>
       </div>
     </div>
@@ -145,6 +168,7 @@ function getMatchScore(style: SelectableStyle) {
   }
   return Math.round(style.overallMatchScore);
 }
+
 function getOccasion(style: SelectableStyle) {
   return isReferenceLook(style) ? style.occasion : style.bestFor;
 }
@@ -164,12 +188,20 @@ function getColors(style: SelectableStyle) {
   return style.colors;
 }
 
-function FooterGroup({ title, items }: { title: string; items: string[] }) {
+function FooterGroup({
+  title,
+  items,
+  compact,
+}: {
+  title: string;
+  items: string[];
+  compact?: boolean;
+}) {
   return (
-    <div>
-      <p className="mb-2 font-bold">{title}</p>
-      <div className="flex flex-wrap gap-2">
-        {items.map((item) => (
+    <div className="min-w-0">
+      <p className="mb-1 font-bold">{title}</p>
+      <div className="flex flex-wrap gap-1">
+        {items.slice(0, compact ? 4 : 6).map((item) => (
           <Badge key={item} className="bg-[#eadfce] text-[#162733]">
             {item}
           </Badge>
@@ -189,14 +221,34 @@ function getBoardRatioClass(aspectRatio: AspectRatio) {
   return "aspect-square";
 }
 
-function getGridClass(aspectRatio: AspectRatio, count: number) {
+function getBoardMaxWidth(aspectRatio: AspectRatio) {
   if (aspectRatio === "16:9") {
-    return count <= 8 ? "grid-cols-4" : "grid-cols-6";
+    return 1280;
   }
   if (aspectRatio === "4:5") {
-    return count <= 8 ? "grid-cols-2" : "grid-cols-4";
+    return 760;
   }
-  return count <= 4 ? "grid-cols-2" : count <= 8 ? "grid-cols-4" : "grid-cols-4";
+  return 960;
+}
+
+function getBoardPaddingClass(count: number) {
+  if (count > 8) {
+    return "p-3 sm:p-4";
+  }
+  return "p-4 sm:p-6";
+}
+
+function getGridClass(count: number) {
+  if (count <= 4) {
+    return "grid-cols-2";
+  }
+  if (count <= 8) {
+    return "grid-cols-2 sm:grid-cols-4";
+  }
+  if (count <= 12) {
+    return "grid-cols-3 sm:grid-cols-4";
+  }
+  return "grid-cols-4";
 }
 
 function formatResemblance(value: Preferences["resemblanceMode"]) {
@@ -208,5 +260,3 @@ function formatResemblance(value: Preferences["resemblanceMode"]) {
   }
   return "Strong resemblance";
 }
-
-

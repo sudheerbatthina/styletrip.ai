@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
-import { getOpenAIClient, getTextModel, isMockMode } from "@/lib/openai";
-import { buildStyleOptionsPrompt } from "@/lib/prompts/style-options";
+import { getTextProviderId, isMockMode } from "@/lib/ai/provider-router";
 import {
   styleOptionsRequestSchema,
-  styleOptionsResponseSchema,
 } from "@/lib/schemas";
 import { mockStyleCards } from "@/lib/mock-data";
 
@@ -22,37 +20,15 @@ export async function POST(request: Request) {
       return jsonError(parsed.error.errors[0]?.message ?? "Invalid request.");
     }
 
-    if (isMockMode()) {
+    const textProvider = getTextProviderId();
+    if (isMockMode() || textProvider === "mock") {
       return NextResponse.json({ styles: mockStyleCards });
     }
 
-    const { analysis, preferences } = parsed.data;
-    const client = getOpenAIClient();
-
-    const completion = await client.chat.completions.create({
-      model: getTextModel(),
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "user",
-          content: buildStyleOptionsPrompt(analysis, preferences),
-        },
-      ],
-    });
-
-    const content = completion.choices[0]?.message?.content;
-    if (!content) {
-      return jsonError("The style model returned no content.", 502);
-    }
-
-    const raw = JSON.parse(content) as unknown;
-    const normalized =
-      typeof raw === "object" && raw && "styles" in raw
-        ? raw
-        : { styles: raw };
-    const styles = styleOptionsResponseSchema.parse(normalized);
-
-    return NextResponse.json(styles);
+    return jsonError(
+      `${textProvider} style option provider is not enabled yet. Use NEXT_PUBLIC_MOCK_MODE=true or AI_TEXT_PROVIDER=mock for local testing.`,
+      501,
+    );
   } catch (error) {
     console.error("generate-style-options failed", error);
     return jsonError(

@@ -80,7 +80,7 @@ export function scoreMockReferenceLooks({
     );
 
     const whyThisMatches = [
-      `${look.occasion} matches your trip occasions.`,
+      `Good for ${look.occasion}, with a ${look.fit} fit and ${look.colorMood} palette.`,
       `${look.fit} fit supports your preferred fit direction.`,
       `${look.colorMood} connects to the recommended palette.`,
     ];

@@ -32,6 +32,17 @@ function getSavedMatchScore(style: SelectableStyle) {
   }
   return Math.round(style.overallMatchScore);
 }
+function getAverageMatchScore(styles: SelectableStyle[]) {
+  const scores = styles
+    .map((style) => ("referenceImageUrl" in style ? style.overallMatchScore : 0))
+    .filter((score) => score > 0);
+
+  if (scores.length === 0) {
+    return null;
+  }
+
+  return Math.round(scores.reduce((total, score) => total + score, 0) / scores.length);
+}
 export const dynamic = "force-dynamic";
 
 export default async function BoardDetailPage({
@@ -66,6 +77,7 @@ export default async function BoardDetailPage({
   const typedBoard = board as BoardDetail;
   const selectedStyles = typedBoard.selected_styles_json ?? [];
   const palette = typedBoard.analysis_json?.recommendedColorPalette ?? [];
+  const averageMatchScore = getAverageMatchScore(selectedStyles);
   const { data: boardImages } = await supabase
     .from("board_images")
     .select("style_key, storage_path")
@@ -122,6 +134,7 @@ export default async function BoardDetailPage({
                 <div className="flex flex-wrap gap-2">
                   <Badge>{typedBoard.aspect_ratio ?? "1:1"}</Badge>
                   <Badge>{typedBoard.number_of_styles ?? selectedStyles.length} looks</Badge>
+                  {averageMatchScore ? <Badge>{averageMatchScore}% avg match</Badge> : null}
                   <Badge>
                     {typedBoard.preferences_json?.resemblanceMode ?? "strong"} resemblance
                   </Badge>

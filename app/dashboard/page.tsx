@@ -7,6 +7,7 @@ import { ConfigWarning } from "@/components/common/ConfigWarning";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import type { SelectableStyle } from "@/lib/schemas";
 import { isSupabaseConfigured, storageBuckets } from "@/lib/supabase/config";
 import { getCurrentUser } from "@/lib/supabase/server";
 
@@ -18,9 +19,21 @@ type BoardListItem = {
   aspect_ratio: string | null;
   number_of_styles: number | null;
   final_board_image_path: string | null;
+  selected_styles_json: SelectableStyle[] | null;
   created_at: string;
 };
 
+function getAverageMatchScore(styles: SelectableStyle[] | null) {
+  const scores = (styles ?? [])
+    .map((style) => ("referenceImageUrl" in style ? style.overallMatchScore : 0))
+    .filter((score) => score > 0);
+
+  if (scores.length === 0) {
+    return null;
+  }
+
+  return Math.round(scores.reduce((total, score) => total + score, 0) / scores.length);
+}
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
@@ -51,7 +64,7 @@ export default async function DashboardPage() {
   const { data: boards } = await supabase
     .from("boards")
     .select(
-      "id, title, trip_location, trip_type, aspect_ratio, number_of_styles, final_board_image_path, created_at",
+      "id, title, trip_location, trip_type, aspect_ratio, number_of_styles, final_board_image_path, selected_styles_json, created_at",
     )
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
@@ -59,12 +72,16 @@ export default async function DashboardPage() {
   const boardsWithImages = await Promise.all(
     ((boards ?? []) as BoardListItem[]).map(async (board) => {
       if (!board.final_board_image_path) {
-        return { ...board, imageUrl: null };
+        return { ...board, imageUrl: null, averageMatchScore: getAverageMatchScore(board.selected_styles_json) };
       }
       const { data } = await supabase.storage
         .from(storageBuckets.generatedBoards)
         .createSignedUrl(board.final_board_image_path, 60 * 20);
-      return { ...board, imageUrl: data?.signedUrl ?? null };
+      return {
+        ...board,
+        imageUrl: data?.signedUrl ?? null,
+        averageMatchScore: getAverageMatchScore(board.selected_styles_json),
+      };
     }),
   );
 
@@ -103,7 +120,7 @@ export default async function DashboardPage() {
             {boardsWithImages.map((board) => (
               <Link key={board.id} href={`/boards/${board.id}`} className="block">
                 <Card className="h-full overflow-hidden transition hover:-translate-y-0.5 hover:border-primary/60">
-                  <div className="aspect-square bg-muted">
+                  <div className="aspect-square bg-[#f4ecdf]">
                     {board.imageUrl ? (
                       <Image
                         src={board.imageUrl}
@@ -111,7 +128,7 @@ export default async function DashboardPage() {
                         width={640}
                         height={640}
                         unoptimized
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-contain p-2"
                       />
                     ) : null}
                   </div>
@@ -119,6 +136,9 @@ export default async function DashboardPage() {
                     <div className="flex flex-wrap gap-2">
                       <Badge>{board.aspect_ratio ?? "1:1"}</Badge>
                       <Badge>{board.number_of_styles ?? 0} looks</Badge>
+                      {board.averageMatchScore ? (
+                        <Badge>{board.averageMatchScore}% avg match</Badge>
+                      ) : null}
                     </div>
                     <h2 className="font-bold">{board.title}</h2>
                     <p className="flex items-center gap-2 text-sm text-muted-foreground">

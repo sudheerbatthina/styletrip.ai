@@ -62,7 +62,7 @@ export function GeneratedBoard({
 
     return toPng(boardRef.current, {
       cacheBust: true,
-      pixelRatio: 1,
+      pixelRatio: 2,
       backgroundColor: "#f8f3ea",
     });
   }
@@ -86,7 +86,7 @@ export function GeneratedBoard({
     <Card>
       <CardContent className="p-4 sm:p-5">
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="overflow-auto rounded-lg border bg-muted p-3">
+          <div className="overflow-hidden rounded-lg border bg-muted p-3">
             <FashionBoardRenderer
               ref={boardRef}
               analysis={analysis}

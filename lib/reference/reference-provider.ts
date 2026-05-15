@@ -1,55 +1,39 @@
-import { mockStyleCards } from "@/lib/mock-data";
 import { scoreMockReferenceLooks } from "@/lib/matching/mock-match-scorer";
+import {
+  getCuratedReferenceLooks,
+  mockStyleCards,
+  type ReferenceProviderInput,
+} from "@/lib/reference/providers/curated-provider";
+import { getPexelsReferenceLooks, getPexelsStatus } from "@/lib/reference/providers/pexels-provider";
+import { getUnsplashReferenceLooks, getUnsplashStatus } from "@/lib/reference/providers/unsplash-provider";
 import type {
   InternalStylePlan,
   Preferences,
   ReferenceLook,
   StyleAnalysis,
-  StyleCardData,
 } from "@/lib/schemas";
 
 const defaultOccasions = ["airport", "daytime walking", "dinner", "casual night"];
+type ReferenceImageProvider = "curated" | "pexels" | "unsplash";
 
-function svgDataUrl(svg: string) {
-  return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
+function getReferenceProvider(): ReferenceImageProvider {
+  const provider = process.env.REFERENCE_IMAGE_PROVIDER;
+  if (provider === "pexels" || provider === "unsplash" || provider === "curated") {
+    return provider;
+  }
+  return "curated";
 }
 
-function escapeSvg(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+function getReferenceProviderMaxResults() {
+  const value = Number(process.env.REFERENCE_PROVIDER_MAX_RESULTS ?? 24);
+  return Number.isFinite(value) ? Math.max(4, Math.min(24, Math.floor(value))) : 24;
 }
 
-function buildReferenceSvg(style: StyleCardData, index: number, fit: string) {
-  const palettes = [
-    ["#f6efe4", "#123d52", "#b9815d", "#5d6f57"],
-    ["#edf2ed", "#243447", "#c9a66b", "#7f8f7a"],
-    ["#f5ecec", "#382f35", "#b65f4d", "#d9c5aa"],
-    ["#eef3f6", "#19384a", "#6d8a96", "#e4d6bd"],
-  ];
-  const [background, ink, accent, soft] = palettes[index % palettes.length];
-  const title = escapeSvg(style.title);
-  const itemOne = escapeSvg(style.items[0] ?? "relaxed top");
-  const itemTwo = escapeSvg(style.items[1] ?? "easy pants");
-  const itemThree = escapeSvg(style.items[2] ?? "clean shoes");
-
-  return svgDataUrl(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="960" height="1200" viewBox="0 0 960 1200"><rect width="960" height="1200" fill="${background}"/><rect x="80" y="78" width="800" height="1044" rx="28" fill="#fffaf2" stroke="#cfbfaa" stroke-width="3"/><rect x="140" y="150" width="680" height="720" rx="26" fill="${soft}"/><circle cx="480" cy="292" r="78" fill="${accent}" opacity="0.9"/><rect x="372" y="390" width="216" height="260" rx="38" fill="${ink}"/><path d="M350 410c-62 56-94 137-96 244h112c7-91 32-159 74-204z" fill="${accent}"/><path d="M610 410c62 56 94 137 96 244H594c-7-91-32-159-74-204z" fill="${accent}"/><rect x="342" y="650" width="118" height="290" rx="30" fill="#35483f"/><rect x="500" y="650" width="118" height="290" rx="30" fill="#35483f"/><rect x="286" y="930" width="190" height="42" rx="21" fill="#22282d"/><rect x="484" y="930" width="190" height="42" rx="21" fill="#22282d"/><rect x="140" y="902" width="680" height="2" fill="#cfbfaa"/><text x="140" y="970" font-family="Arial, sans-serif" font-size="38" font-weight="700" fill="${ink}">${title}</text><text x="140" y="1018" font-family="Arial, sans-serif" font-size="24" fill="#52616b">${escapeSvg(fit)} fit reference</text><text x="140" y="1070" font-family="Arial, sans-serif" font-size="24" fill="${ink}">${itemOne} / ${itemTwo}</text><text x="140" y="1106" font-family="Arial, sans-serif" font-size="24" fill="${ink}">${itemThree}</text></svg>`,
+function getReferenceTarget(preferences: Preferences) {
+  return Math.min(
+    getReferenceProviderMaxResults(),
+    Math.max(8, preferences.numberOfStyleIdeas * 2),
   );
-}
-
-function getOccasion(style: StyleCardData, preferences: Preferences, index: number) {
-  const options = preferences.occasionTypes.length > 0
-    ? preferences.occasionTypes
-    : defaultOccasions;
-  const lower = style.bestFor.toLowerCase();
-  return options.find((occasion) => lower.includes(occasion.toLowerCase())) ?? options[index % options.length];
-}
-
-function getColorMood(style: StyleCardData) {
-  return style.colors.slice(0, 3).join(" / ");
 }
 
 export function getMockStylePlan(
@@ -70,57 +54,92 @@ export function getMockStylePlan(
       colors: style.colors,
       silhouettes: analysis.recommendedSilhouettes.slice(0, 2),
       avoid: [style.avoidIf, ...analysis.visibleStyleProfile.avoidAdvice.slice(0, 1)],
-      occasion: getOccasion(style, preferences, index),
+      occasion: preferences.occasionTypes[index % Math.max(preferences.occasionTypes.length, 1)] ?? defaultOccasions[index % defaultOccasions.length],
     })),
     overallGuidance:
       "Use relaxed trip outfits with clear proportions, practical layers, and colors that connect back to the uploaded styling reference. Reference looks are inspiration, not exact try-on.",
   };
 }
 
-export function getMockReferenceLooks(
+export async function getMockReferenceLooks(
   analysis: StyleAnalysis,
   preferences: Preferences,
-): ReferenceLook[] {
-  const target = Math.max(8, Math.min(16, preferences.numberOfStyleIdeas));
-
-  const looks: ReferenceLook[] = mockStyleCards.slice(0, target).map((style, index) => ({
-    id: `look-${index + 1}`,
-    title: style.title,
-    occasion: getOccasion(style, preferences, index),
-    fit: preferences.preferredFit,
-    colorMood: getColorMood(style),
-    items: style.items.slice(0, 4),
-    whyItFits: style.whyItFitsUser,
-    referenceImageUrl: buildReferenceSvg(style, index, preferences.preferredFit),
-    source: "mock",
-    sourceUrl: null,
-    promptHint: style.imagePromptHint,
-    selected: false,
-    overallMatchScore: 0,
-    bodyFitScore: 0,
-    colorScore: 0,
-    occasionScore: 0,
-    preferenceScore: 0,
-    whyThisMatches: [],
-    matchTags: [],
-  }));
-
+): Promise<ReferenceLook[]> {
+  const target = getReferenceTarget(preferences);
+  const input: ReferenceProviderInput = { analysis, preferences, target };
+  const looks = await getProviderReferenceLooks(input);
   return scoreMockReferenceLooks({ looks, analysis, preferences });
 }
 
-export function getReferenceLooksForPlan({
+export async function getReferenceLooksForPlan({
   analysis,
   preferences,
 }: {
   analysis: StyleAnalysis;
   preferences: Preferences;
 }) {
-  // TODO: Add a Pexels provider for licensed editorial-style references.
-  // TODO: Add an Unsplash provider for curated travel/fashion-safe references.
-  // TODO: Add a curated fashion catalog provider owned by StyleTrip.
-  // TODO: Add retailer/product feed providers when shopping links are enabled.
   return {
     stylePlan: getMockStylePlan(analysis, preferences),
-    referenceLooks: getMockReferenceLooks(analysis, preferences),
+    referenceLooks: await getMockReferenceLooks(analysis, preferences),
   };
+}
+
+async function getProviderReferenceLooks(input: ReferenceProviderInput) {
+  const curatedLooks = await getCuratedReferenceLooks(input);
+  const provider = getReferenceProvider();
+
+  if (provider === "curated") {
+    return curatedLooks;
+  }
+
+  try {
+    const externalLooks = provider === "pexels"
+      ? await getPexelsLooksIfEnabled(input)
+      : await getUnsplashLooksIfEnabled(input);
+
+    return mergeWithCuratedFallback(externalLooks, curatedLooks, input.target);
+  } catch (error) {
+    console.warn(`Reference provider ${provider} failed; falling back to curated.`, error);
+    return curatedLooks;
+  }
+}
+
+async function getPexelsLooksIfEnabled(input: ReferenceProviderInput) {
+  const status = getPexelsStatus();
+  if (!status.enabled) {
+    console.warn(status.reason);
+    return [];
+  }
+  return getPexelsReferenceLooks(input);
+}
+
+async function getUnsplashLooksIfEnabled(input: ReferenceProviderInput) {
+  const status = getUnsplashStatus();
+  if (!status.enabled) {
+    console.warn(status.reason);
+    return [];
+  }
+  return getUnsplashReferenceLooks(input);
+}
+
+function mergeWithCuratedFallback(
+  externalLooks: ReferenceLook[],
+  curatedLooks: ReferenceLook[],
+  target: number,
+) {
+  const merged = new Map<string, ReferenceLook>();
+  for (const look of externalLooks) {
+    if (look.referenceImageUrl) {
+      merged.set(look.id, look);
+    }
+  }
+  for (const look of curatedLooks) {
+    if (merged.size >= target) {
+      break;
+    }
+    if (!merged.has(look.id)) {
+      merged.set(look.id, look);
+    }
+  }
+  return Array.from(merged.values()).slice(0, target);
 }

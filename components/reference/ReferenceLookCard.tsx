@@ -34,6 +34,8 @@ export function ReferenceLookCard({
   const matchTags = look.matchTags.slice(0, 2);
   const whyThisWorks = look.whyThisMatches[0] ?? look.whyItFits;
   const matchScore = Math.round(look.overallMatchScore);
+  const sourceLabel = look.sourceName || look.source;
+  const attribution = look.attributionText || (look.photographer ? `Photo by ${look.photographer}` : "");
 
   return (
     <Card
@@ -43,19 +45,24 @@ export function ReferenceLookCard({
         disliked && !selected && "opacity-60",
       )}
     >
-      <div className="relative aspect-[4/5] bg-muted">
+      <div className="relative aspect-[4/5] bg-[#f4ecdf]">
         <img
           src={look.referenceImageUrl}
           alt={`${look.title} reference look`}
-          className="h-full w-full object-cover"
+          className="h-full w-full object-contain p-4"
         />
         <div className="absolute left-3 top-3 flex flex-wrap gap-2">
           <Badge className="bg-background/95 text-foreground">{look.occasion}</Badge>
           <Badge className="bg-background/95 text-foreground">{look.fit}</Badge>
         </div>
-        <Badge className="absolute bottom-3 left-3 bg-primary text-primary-foreground">
-          {matchScore}% match
-        </Badge>
+        <div className="absolute bottom-3 left-3 flex flex-wrap gap-2">
+          <Badge className="bg-background/95 text-foreground shadow-sm">
+            {matchScore}% match
+          </Badge>
+          <Badge className="bg-background/95 text-foreground shadow-sm">
+            {sourceLabel}
+          </Badge>
+        </div>
         {selected ? (
           <span className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-soft">
             <Check className="h-4 w-4" />
@@ -83,11 +90,23 @@ export function ReferenceLookCard({
         <p className="text-sm leading-6 text-muted-foreground">
           {look.items.slice(0, 4).join(" / ")}
         </p>
-        <div className="rounded-md border bg-muted/30 p-3">
+        {attribution ? (
+          <p className="text-xs text-muted-foreground">
+            {look.sourceUrl ? (
+              <a href={look.sourceUrl} target="_blank" rel="noreferrer" className="font-semibold text-primary hover:underline">
+                {attribution}
+              </a>
+            ) : (
+              attribution
+            )}
+          </p>
+        ) : null}
+
+        <div className="rounded-md border bg-muted/25 p-3">
           <p className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
             Why this works
           </p>
-          <p className="mt-1 text-sm leading-6">{whyThisWorks}</p>
+          <p className="mt-1 line-clamp-2 text-sm leading-6">{whyThisWorks}</p>
         </div>
       </div>
 

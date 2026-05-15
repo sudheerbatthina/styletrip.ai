@@ -13,7 +13,7 @@ The app keeps mock-mode generation working, so UI development does not require O
 - lucide-react
 - React Hook Form
 - Zod validation
-- OpenAI API
+- Provider router skeleton for mock, OpenAI, Gemini, and fal
 - Supabase Auth, Postgres, and Storage
 - Frontend-rendered fashion boards exported as PNG
 
@@ -30,7 +30,7 @@ The user-facing workflow is visual-first:
 
 The app does not rely on AI to generate the full final collage with readable text. Outfit titles, occasions, item lists, colors/fit, and labels are frontend text. This gives cleaner typography, better layout control, and reliable support for `1:1`, `4:5`, and `16:9`.
 
-For MVP, mock mode uses local reference images, deterministic match scoring, and mock outfit images. Real curated/stock/catalog reference providers, AI scoring, and paid personalized image providers are future integration points.
+For MVP, mock mode uses local curated SVG reference illustrations, deterministic match scoring, and mock outfit images. No paid APIs are called by default. Real curated/stock/catalog reference providers, AI scoring, provider routing, and paid personalized image providers are future integration points.
 
 ## Routes
 
@@ -53,10 +53,21 @@ OPENAI_API_KEY=
 OPENAI_TEXT_MODEL=
 OPENAI_IMAGE_MODEL=
 NEXT_PUBLIC_MOCK_MODE=true
-NEXT_PUBLIC_APP_URL=http://127.0.0.1:3000
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+AI_TEXT_PROVIDER=mock
+AI_IMAGE_PROVIDER=mock
+AI_IMAGE_FALLBACK_PROVIDER=
+ENABLE_PAID_IMAGE_GENERATION=false
+MAX_REAL_IMAGES_PER_BOARD=4
+MAX_ESTIMATED_COST_PER_BOARD_USD=0.25
+REFERENCE_IMAGE_PROVIDER=curated
+PEXELS_API_KEY=
+UNSPLASH_ACCESS_KEY=
+REFERENCE_PROVIDER_MAX_RESULTS=24
+REFERENCE_PROVIDER_CACHE_ENABLED=true
 ```
 
-Model names are read from env. Change `OPENAI_TEXT_MODEL` for photo analysis/style planning and `OPENAI_IMAGE_MODEL` for future image generation. Paid image generation is guarded by `ENABLE_PAID_IMAGE_GENERATION=true` and should only be enabled after cost confirmation UX is implemented.
+Provider names are read from env. Keep `AI_TEXT_PROVIDER=mock` and `AI_IMAGE_PROVIDER=mock` for local development. OpenAI, Gemini, and fal provider files are present as disabled TODO stubs. Paid image generation is blocked unless `ENABLE_PAID_IMAGE_GENERATION=true`, provider keys are configured, and future cost confirmation UX is enabled.
 
 ## Local Development
 
@@ -65,7 +76,7 @@ npm install
 npm run dev
 ```
 
-Open `http://127.0.0.1:3000`.
+Open `http://localhost:3000`.
 
 Useful checks:
 
@@ -83,19 +94,56 @@ Set:
 NEXT_PUBLIC_MOCK_MODE=true
 ```
 
-Mock mode returns sample photo analysis, an internal style plan, ranked visual reference look cards with match scores, and mock generated outfit images without calling OpenAI or paid image-generation providers. The final board is still rendered in the frontend. If Supabase is configured, mock-generated boards can be saved to the database and storage after login. If Supabase is not configured, the builder still works but saved boards/auth are disabled with visible warnings.
+Mock mode returns sample photo analysis, an internal style plan, ranked visual reference look cards with match scores, a $0 cost estimate card, and mock generated outfit images without calling OpenAI, Gemini, fal, Runware, or paid image-generation providers. The final board is still rendered in the frontend. If Supabase is configured, mock-generated boards can be saved to the database and storage after login. If Supabase is not configured, the builder still works but saved boards/auth are disabled with visible warnings.
 
-To use real photo-analysis calls:
+Real providers are intentionally disabled for now. Keep local development on:
 
 ```bash
-NEXT_PUBLIC_MOCK_MODE=false
-OPENAI_API_KEY=...
-OPENAI_TEXT_MODEL=...
-OPENAI_IMAGE_MODEL=...
-# Future paid image generation guard:
-# ENABLE_PAID_IMAGE_GENERATION=true
+NEXT_PUBLIC_MOCK_MODE=true
+AI_TEXT_PROVIDER=mock
+AI_IMAGE_PROVIDER=mock
+ENABLE_PAID_IMAGE_GENERATION=false
 ```
 
+## Reference Image Providers
+
+`REFERENCE_IMAGE_PROVIDER=curated` is the default and uses local StyleTrip demo illustrations. This path is free, works offline, and does not call external image APIs.
+
+Optional future providers:
+
+```bash
+REFERENCE_IMAGE_PROVIDER=pexels
+PEXELS_API_KEY=...
+```
+
+```bash
+REFERENCE_IMAGE_PROVIDER=unsplash
+UNSPLASH_ACCESS_KEY=...
+```
+
+Pexels and Unsplash modules normalize results into the same reference look schema, including image URL, source URL, photographer, and attribution text. If a provider key is missing, the provider is disabled. If an external request fails or returns too few results, the app falls back to curated local references.
+
+Google Images scraping is intentionally not supported because it is unreliable for licensing, attribution, and terms compliance. Future production reference sources should be licensed stock APIs, curated owned libraries, or retailer/product feeds with clear attribution rules.
+## Provider and Cost Guard
+
+Current defaults are intentionally demo-safe:
+
+```bash
+NEXT_PUBLIC_MOCK_MODE=true
+AI_TEXT_PROVIDER=mock
+AI_IMAGE_PROVIDER=mock
+AI_IMAGE_FALLBACK_PROVIDER=
+ENABLE_PAID_IMAGE_GENERATION=false
+MAX_REAL_IMAGES_PER_BOARD=4
+MAX_ESTIMATED_COST_PER_BOARD_USD=0.25
+REFERENCE_IMAGE_PROVIDER=curated
+PEXELS_API_KEY=
+UNSPLASH_ACCESS_KEY=
+REFERENCE_PROVIDER_MAX_RESULTS=24
+REFERENCE_PROVIDER_CACHE_ENABLED=true
+```
+
+The active routes use mock responses unless providers are explicitly enabled later. Real providers should stay behind selection, consent, pricing, and confirmation checks.
 ## Supabase Setup
 
 1. Create a Supabase project.
@@ -165,9 +213,12 @@ Email/password auth is implemented for MVP. Google Sign-In is intentionally not 
 
 - Shopping agent: search verified retailers for matching items by color, fabric, silhouette, and price.
 - Closet upload: generate outfits from clothes users already own.
-- Reference providers: plug in Pexels, Unsplash, curated fashion catalogs, and retailer/product feeds.
+- Reference providers: test Pexels, Unsplash, curated fashion catalogs, and retailer/product feeds with attribution and fallback.
+- Try-on extension: run personalized image generation only after selection, consent, and cost confirmation.
 - AI match scoring: replace the mock scorer in `lib/matching` with a provider-backed scorer after cost and privacy review.
 - User feedback: save liked/disliked reference looks to improve future recommendations.
 - Trip packing list: convert selected outfits into a packing checklist.
 - Multiple boards: generate separate boards for day, night, pool, airport, dinner, club, and photoshoot.
+- Google Sign-In: add Supabase OAuth after email/password MVP is stable.
+- Mobile app: package the upload-to-board flow once the web workflow is validated.
 

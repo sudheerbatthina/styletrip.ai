@@ -34,7 +34,7 @@ export function SavedBoardDetail({
     }
     const image = await toPng(boardRef.current, {
       cacheBust: true,
-      pixelRatio: 1,
+      pixelRatio: 2,
       backgroundColor: "#f8f3ea",
     });
     const link = document.createElement("a");
@@ -47,7 +47,7 @@ export function SavedBoardDetail({
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
-      <div className="overflow-auto rounded-lg border bg-muted p-3">
+      <div className="overflow-hidden rounded-lg border bg-muted p-3">
         <FashionBoardRenderer
           ref={boardRef}
           analysis={analysis}

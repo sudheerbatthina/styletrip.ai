@@ -101,13 +101,21 @@ export const mockBoardDataUrl =
   ).toString("base64");
 
 export function buildMockOutfitImage(styleTitle: string, index: number) {
-  const fills = ["#eadccb", "#dfe9df", "#d8e4ea", "#eee4c8", "#e6d7d7"];
-  const fill = fills[index % fills.length];
+  const palettes = [
+    ["#f3eadc", "#17394a", "#f7f2e8", "#7f7768", "#b9815d"],
+    ["#e7edf2", "#21496b", "#f8f4ed", "#2f5d88", "#a97050"],
+    ["#f6efe3", "#5f744f", "#efe0bd", "#9d7047", "#c08a64"],
+    ["#f1e6df", "#923f34", "#f5e6c4", "#272b2f", "#b77956"],
+    ["#e9efe5", "#b8c19d", "#e8dfbf", "#806a58", "#ad7654"],
+  ];
+  const [background, jacket, shirt, pants, skin] = palettes[index % palettes.length];
+  const safeTitle = styleTitle.replace(/&/g, "and").replace(/</g, "");
+  const hasPattern = /print|graphic|racing|bowling|varsity|crochet|knit/i.test(styleTitle);
 
   return (
     "data:image/svg+xml;base64," +
     Buffer.from(
-      `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1280" viewBox="0 0 1024 1280"><rect width="1024" height="1280" fill="${fill}"/><rect x="132" y="116" width="760" height="1048" rx="34" fill="#f8f3ea" stroke="#c5b9a8" stroke-width="4"/><circle cx="512" cy="320" r="92" fill="#b98765"/><rect x="380" y="430" width="264" height="320" rx="36" fill="#123d52"/><rect x="340" y="740" width="120" height="330" rx="28" fill="#5d6f57"/><rect x="564" y="740" width="120" height="330" rx="28" fill="#5d6f57"/><rect x="300" y="1070" width="180" height="48" rx="24" fill="#2a2f35"/><rect x="544" y="1070" width="180" height="48" rx="24" fill="#2a2f35"/><text x="512" y="1220" text-anchor="middle" font-family="Arial" font-size="38" font-weight="700" fill="#123d52">${index + 1}. ${styleTitle.replace(/&/g, "and")}</text></svg>`,
+      `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1280" viewBox="0 0 1024 1280"><defs><linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="${background}"/><stop offset="1" stop-color="#fffaf2"/></linearGradient><filter id="shadow"><feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#18242b" flood-opacity="0.18"/></filter></defs><rect width="1024" height="1280" fill="url(#bg)"/><rect x="108" y="82" width="808" height="1088" rx="44" fill="#fffaf2" stroke="#ccbda8" stroke-width="4"/><ellipse cx="512" cy="1078" rx="214" ry="34" fill="#18242b" opacity="0.16"/><g filter="url(#shadow)"><circle cx="512" cy="238" r="74" fill="${skin}"/><path d="M456 218c22-56 96-58 124-8 8 16 8 39-1 58-26-24-62-34-109-31-6 0-12-7-14-19z" fill="#202a30"/><rect x="470" y="298" width="84" height="72" rx="30" fill="${skin}"/><path d="M374 364h276c45 70 60 186 42 344H332c-18-158-3-274 42-344z" fill="${jacket}"/><path d="M456 364h112l-28 344H456z" fill="${shirt}"/><path d="M374 382c-70 66-108 148-116 246l88 24c16-86 47-152 94-198z" fill="${jacket}"/><path d="M650 382c70 66 108 148 116 246l-88 24c-16-86-47-152-94-198z" fill="${jacket}"/>${hasPattern ? `<g opacity="0.8" fill="${shirt}"><circle cx="408" cy="448" r="20"/><circle cx="616" cy="472" r="18"/><rect x="394" y="548" width="236" height="24" rx="12"/><text x="512" y="620" text-anchor="middle" font-family="Arial" font-size="72" font-weight="700" fill="${shirt}">S</text></g>` : `<path d="M374 608h318" stroke="${shirt}" stroke-width="22" opacity="0.45"/>`}<path d="M388 708h140l-22 350H392z" fill="${pants}"/><path d="M548 708h138l-2 350H570z" fill="${pants}"/><path d="M372 1052h156v48H330c-4-28 10-44 42-48z" fill="#24282d"/><path d="M552 1052h156c32 4 46 20 42 48H552z" fill="#24282d"/></g><text x="512" y="1216" text-anchor="middle" font-family="Arial" font-size="38" font-weight="700" fill="#123d52">${index + 1}. ${safeTitle}</text></svg>`,
     ).toString("base64")
   );
 }

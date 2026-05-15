@@ -10,6 +10,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { StepHeader } from "@/components/common/StepHeader";
+import { CostEstimateCard } from "@/components/cost/CostEstimateCard";
 import { PreferenceForm, defaultPreferences } from "@/components/preferences/PreferenceForm";
 import { ReferenceFeedbackBar } from "@/components/reference/ReferenceFeedbackBar";
 import {
@@ -257,6 +258,13 @@ function StyleTripApp({
 
     if (kind === "notMyStyle" && !active) {
       setSelectedIds(selectedIds.filter((item) => item !== id));
+      setReferenceLooks((current) => {
+        const rejected = current.find((look) => look.id === id);
+        if (!rejected) {
+          return current;
+        }
+        return [...current.filter((look) => look.id !== id), rejected];
+      });
     }
 
     setFeedback(nextFeedback);
@@ -510,7 +518,15 @@ function StyleTripApp({
                   <h2 className="text-xl font-bold">
                     {selectedLooks.length} looks ready
                   </h2>
-                  <CostGuardPanel />
+                  <CostEstimateCard
+                    provider={mockMode ? "mock" : "configured provider"}
+                    imageCount={selectedLooks.length}
+                    totalEstimateUsd={0}
+                    estimatedTextCostUsd={0}
+                    estimatedImageCostUsd={0}
+                    maxAllowedCostUsd={0.25}
+                    status={mockMode ? "mock" : "blocked"}
+                  />
                   <p className="text-sm leading-6 text-muted-foreground">
                     The board is generated as AI outfit inspiration, not an exact
                     try-on. It will avoid explicit clothing, sensitive assumptions,
@@ -712,18 +728,22 @@ function StylePlanDetails({
       </summary>
       <div className="mt-3 space-y-3 text-sm leading-6 text-muted-foreground">
         <p>{stylePlan.overallGuidance}</p>
+        <p>
+          Match scores blend occasion fit, preferred silhouette, color palette, and your
+          dislikes. Higher-scored cards appear first.
+        </p>
         <InfoRow
           label="Photo/style profile"
           value={analysis.visibleStyleProfile.currentOutfitNotes}
         />
         <InfoRow
-          label="Occasion"
+          label="Selected occasions"
           value={preferences.occasionTypes.join(", ") || stylePlan.occasionFocus.join(", ")}
         />
         <InfoRow label="Fit preference" value={preferences.preferredFit} />
         <InfoRow label="Color palette" value={palette || "Flexible travel neutrals"} />
         <InfoRow
-          label="Disliked styles"
+          label="Disliked styles avoided"
           value={dislikedStyles || "No disliked styles entered."}
         />
         <div className="flex flex-wrap gap-2">
@@ -746,25 +766,6 @@ function InfoRow({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-function CostGuardPanel() {
-  return (
-    <div className="rounded-lg border bg-muted/35 p-4 text-sm leading-6 text-muted-foreground">
-      {mockMode ? (
-        <p>
-          <span className="font-semibold text-foreground">Mock mode:</span> $0 estimated cost.
-        </p>
-      ) : (
-        <div className="space-y-2">
-          <p className="font-semibold text-foreground">
-            Estimated cost will be calculated before generation.
-          </p>
-          <p>Personalized image generation is only run after you select looks.</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function SelectedLooksPreview({ looks }: { looks: ReferenceLook[] }) {
   return (
     <Card>

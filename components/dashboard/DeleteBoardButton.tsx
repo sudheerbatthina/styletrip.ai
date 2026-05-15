@@ -10,7 +10,7 @@ export function DeleteBoardButton({ boardId }: { boardId: string }) {
   const [loading, setLoading] = useState(false);
 
   async function deleteBoard() {
-    const confirmed = window.confirm("Delete this saved board?");
+    const confirmed = window.confirm("Delete this saved board? This cannot be undone.");
     if (!confirmed) {
       return;
     }

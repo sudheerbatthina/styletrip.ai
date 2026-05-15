@@ -20,7 +20,7 @@ export async function POST(request: Request) {
       return jsonError(parsed.error.errors[0]?.message ?? "Invalid request.");
     }
 
-    const result = getReferenceLooksForPlan(parsed.data);
+    const result = await getReferenceLooksForPlan(parsed.data);
     return NextResponse.json(referenceLooksResponseSchema.parse(result));
   } catch (error) {
     console.error("generate-reference-looks failed", error);
