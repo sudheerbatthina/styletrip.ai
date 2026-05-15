@@ -10,10 +10,14 @@ type ProviderStatus = {
   mockMode: boolean;
   paidGenerationEnabled: boolean;
   referenceProvider: string;
+  referenceProviderCacheEnabled: boolean;
+  referenceProviderMaxResults: number;
+  referenceFallbackBehavior: string;
   textProvider: string;
   imageProvider: string;
   fallbackImageProvider: string | null;
   maxRealImagesPerBoard: number;
+  maxRealTestImages: number;
   maxEstimatedCostPerBoardUsd: number;
   missingKeys: Record<string, boolean>;
 };
@@ -77,6 +81,16 @@ export function ProviderStatusCard() {
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <StatusLine label="Mock mode" value={status?.mockMode ? "on" : "off"} loading={loading} />
           <StatusLine label="Reference" value={status?.referenceProvider ?? "unknown"} loading={loading} />
+          <StatusLine
+            label="Reference cache"
+            value={status?.referenceProviderCacheEnabled ? "enabled" : "disabled"}
+            loading={loading}
+          />
+          <StatusLine
+            label="Max refs"
+            value={String(status?.referenceProviderMaxResults ?? 24)}
+            loading={loading}
+          />
           <StatusLine label="Text provider" value={status?.textProvider ?? "unknown"} loading={loading} />
           <StatusLine label="Image provider" value={status?.imageProvider ?? "unknown"} loading={loading} />
           <StatusLine
@@ -95,6 +109,11 @@ export function ProviderStatusCard() {
             loading={loading}
           />
           <StatusLine
+            label="Max test images"
+            value={String(status?.maxRealTestImages ?? 1)}
+            loading={loading}
+          />
+          <StatusLine
             label="Max cost"
             value={`$${(status?.maxEstimatedCostPerBoardUsd ?? 0).toFixed(2)}`}
             loading={loading}
@@ -107,6 +126,7 @@ export function ProviderStatusCard() {
             <p className="text-muted-foreground">
               Paid providers stay blocked unless ENABLE_PAID_IMAGE_GENERATION=true.
               Missing keys are shown only as booleans.
+              {status?.referenceFallbackBehavior ? ` ${status.referenceFallbackBehavior}` : ""}
             </p>
           </div>
           {status ? (

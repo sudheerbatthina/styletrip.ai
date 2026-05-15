@@ -5,6 +5,7 @@ import { Calendar, MapPin, Plus } from "lucide-react";
 import { AppNav } from "@/components/common/AppNav";
 import { ConfigWarning } from "@/components/common/ConfigWarning";
 import { ProviderStatusCard } from "@/components/dashboard/ProviderStatusCard";
+import { ProviderTestLabCard } from "@/components/dashboard/ProviderTestLabCard";
 import { StyleMemoryCard } from "@/components/dashboard/StyleMemoryCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,10 @@ function getAverageMatchScore(styles: SelectableStyle[] | null) {
   return Math.round(scores.reduce((total, score) => total + score, 0) / scores.length);
 }
 export const dynamic = "force-dynamic";
+
+const showProviderTestLab =
+  process.env.NODE_ENV === "development" ||
+  process.env.SHOW_PROVIDER_TEST_LAB === "true";
 
 export default async function DashboardPage() {
   const supabaseReady = isSupabaseConfigured();
@@ -107,6 +112,7 @@ export default async function DashboardPage() {
 
         <StyleMemoryCard />
         <ProviderStatusCard />
+        {showProviderTestLab ? <ProviderTestLabCard /> : null}
 
         {boardsWithImages.length === 0 ? (
           <Card>

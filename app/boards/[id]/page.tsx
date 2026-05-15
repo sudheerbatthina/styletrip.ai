@@ -187,6 +187,22 @@ export default async function BoardDetailPage({
                         <p className="mt-1 text-xs leading-5 text-muted-foreground">
                           {style.items.join(", ")}
                         </p>
+                        {"referenceImageUrl" in style && style.attributionText ? (
+                          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                            {style.sourceUrl ? (
+                              <a
+                                href={style.sourceUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="font-semibold text-primary hover:underline"
+                              >
+                                {style.attributionText}
+                              </a>
+                            ) : (
+                              style.attributionText
+                            )}
+                          </p>
+                        ) : null}
                       </div>
                     );
                   })}

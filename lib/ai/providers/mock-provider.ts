@@ -1,4 +1,9 @@
 import type { AiProviderId } from "@/lib/ai/provider-router";
+import { buildMockOutfitImage } from "@/lib/mock-data";
+import type {
+  OneImageProviderInput,
+  OneImageProviderResult,
+} from "@/lib/ai/providers/types";
 
 export type MockProvider = {
   id: AiProviderId;
@@ -9,3 +14,17 @@ export const mockProvider: MockProvider = {
   id: "mock",
   kind: "mock",
 };
+
+export async function generateMockProviderTestImage(
+  input: OneImageProviderInput,
+): Promise<OneImageProviderResult> {
+  return {
+    imageUrlOrBase64: buildMockOutfitImage(input.selectedReferenceLook.title, 0),
+    metadata: {
+      provider: "mock",
+      mode: "mock",
+      promptUsed: input.selectedReferenceLook.promptHint,
+      warnings: ["Mock provider test generated a local demo image. No paid APIs were called."],
+    },
+  };
+}

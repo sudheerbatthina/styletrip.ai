@@ -59,7 +59,10 @@ export function ReferenceLookCard({
         <img
           src={look.referenceImageUrl}
           alt={`${look.title} reference look`}
-          className="h-full w-full object-contain p-4"
+          className={cn(
+            "h-full w-full",
+            look.source === "stock" ? "object-cover p-0" : "object-contain p-4",
+          )}
         />
         <div className="absolute left-3 top-3 flex flex-wrap gap-2">
           <Badge className="bg-background/95 text-foreground">{look.occasion}</Badge>

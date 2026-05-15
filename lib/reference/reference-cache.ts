@@ -4,6 +4,7 @@ type CacheEntry<T> = {
 };
 
 const cache = new Map<string, CacheEntry<unknown>>();
+const defaultTtlMs = 1000 * 60 * 45;
 
 export function isReferenceCacheEnabled() {
   return process.env.REFERENCE_PROVIDER_CACHE_ENABLED !== "false";
@@ -27,7 +28,7 @@ export function getReferenceCache<T>(key: string): T | null {
   return entry.value;
 }
 
-export function setReferenceCache<T>(key: string, value: T, ttlMs = 1000 * 60 * 20) {
+export function setReferenceCache<T>(key: string, value: T, ttlMs = defaultTtlMs) {
   if (!isReferenceCacheEnabled()) {
     return;
   }
@@ -36,4 +37,36 @@ export function setReferenceCache<T>(key: string, value: T, ttlMs = 1000 * 60 * 
     value,
     expiresAt: Date.now() + ttlMs,
   });
+}
+
+export function createReferenceCacheKey({
+  provider,
+  query,
+  preferencesHash,
+  target,
+}: {
+  provider: string;
+  query: string;
+  preferencesHash: string;
+  target: number;
+}) {
+  return [
+    "reference",
+    provider,
+    hashKey(query),
+    preferencesHash,
+    String(target),
+  ].join(":");
+}
+
+export function createReferencePreferencesHash(value: unknown) {
+  return hashKey(JSON.stringify(value));
+}
+
+function hashKey(value: string) {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+  return hash.toString(36);
 }

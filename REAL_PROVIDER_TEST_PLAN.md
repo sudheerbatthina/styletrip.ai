@@ -41,14 +41,28 @@ UNSPLASH_ACCESS_KEY=...
 
 If the provider fails or has too few results, the app should fall back to curated references.
 
+## Step 2.5: Test Mock Provider Lab
+
+In development, or with:
+
+```bash
+SHOW_PROVIDER_TEST_LAB=true
+ENABLE_PAID_IMAGE_GENERATION=false
+AI_IMAGE_PROVIDER=mock
+```
+
+Open the dashboard and run the Real Provider Test Lab with `mock`. It should generate exactly one local demo image and show `$0` estimated cost.
+
 ## Step 3: Prepare One-Image Paid Test
 
 Only when ready:
 
 ```bash
 NEXT_PUBLIC_MOCK_MODE=false
+SHOW_PROVIDER_TEST_LAB=true
 ENABLE_PAID_IMAGE_GENERATION=true
-MAX_REAL_IMAGES_PER_BOARD=1
+MAX_REAL_TEST_IMAGES=1
+MAX_REAL_IMAGES_PER_BOARD=4
 MAX_ESTIMATED_COST_PER_BOARD_USD=0.25
 AI_TEXT_PROVIDER=mock
 AI_IMAGE_PROVIDER=openai
@@ -56,9 +70,19 @@ AI_IMAGE_PROVIDER=openai
 
 Use the provider status panel on the dashboard and `GET /api/provider-status?imageCount=1` to confirm the estimate before testing.
 
-## Step 4: Run One Image Test
+## Step 4: Run One Image Test Lab
 
-Select exactly one look if the UI supports a one-image test path later. If the current UI requires four looks, do not run real generation yet. Keep using mock mode until a dedicated one-image test harness exists.
+Open the dashboard and use **Real Provider Test Lab**. It is developer-only and calls `POST /api/provider-test/generate-one`.
+
+Rules:
+
+- Select exactly one provider.
+- Select one reference look.
+- Upload an optional reference image if needed.
+- Check the explicit confirmation box.
+- Generate exactly one image.
+
+Do not test the normal 4/8/12/16 board generator with real providers yet.
 
 ## Step 5: Inspect Cost and Logs
 
@@ -77,9 +101,11 @@ Return to safe defaults:
 
 ```bash
 NEXT_PUBLIC_MOCK_MODE=true
+SHOW_PROVIDER_TEST_LAB=false
 AI_TEXT_PROVIDER=mock
 AI_IMAGE_PROVIDER=mock
 ENABLE_PAID_IMAGE_GENERATION=false
+MAX_REAL_TEST_IMAGES=1
 MAX_REAL_IMAGES_PER_BOARD=4
 ```
 

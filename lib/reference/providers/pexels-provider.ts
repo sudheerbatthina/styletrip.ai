@@ -1,5 +1,10 @@
-import { getReferenceCache, setReferenceCache } from "@/lib/reference/reference-cache";
-import { buildReferenceQuery } from "@/lib/reference/reference-query-builder";
+import {
+  createReferenceCacheKey,
+  createReferencePreferencesHash,
+  getReferenceCache,
+  setReferenceCache,
+} from "@/lib/reference/reference-cache";
+import { buildReferenceQueries } from "@/lib/reference/reference-query-builder";
 import {
   createBaseReferenceLook,
   mockStyleCards,
@@ -8,6 +13,7 @@ import {
 import type { ReferenceLook } from "@/lib/schemas";
 
 type PexelsPhoto = {
+  id?: number;
   url?: string;
   photographer?: string;
   photographer_url?: string;
@@ -25,6 +31,9 @@ type PexelsResponse = {
 };
 
 export function getPexelsStatus() {
+  if (process.env.REFERENCE_IMAGE_PROVIDER !== "pexels") {
+    return { enabled: false, reason: "REFERENCE_IMAGE_PROVIDER is not set to pexels." };
+  }
   if (!process.env.PEXELS_API_KEY) {
     return { enabled: false, reason: "PEXELS_API_KEY is not configured." };
   }
@@ -37,40 +46,55 @@ export async function getPexelsReferenceLooks(input: ReferenceProviderInput): Pr
     return [];
   }
 
-  const cacheKey = `pexels:${JSON.stringify({
+  const preferencesHash = createReferencePreferencesHash({
     target: input.target,
     tripLocation: input.preferences.tripLocation,
     occasions: input.preferences.occasionTypes,
     fit: input.preferences.preferredFit,
-    colors: input.analysis.recommendedColorPalette.slice(0, 4),
-  })}`;
+    favoriteColors: input.preferences.favoriteColors,
+    dislikedStyles: input.preferences.dislikedStyles,
+    genderStyleDirection: input.preferences.genderStyleDirection,
+    colors: input.analysis.recommendedColorPalette.slice(0, 5),
+  });
+  const cacheKey = createReferenceCacheKey({
+    provider: "pexels",
+    query: "batch",
+    preferencesHash,
+    target: input.target,
+  });
   const cached = getReferenceCache<ReferenceLook[]>(cacheKey);
   if (cached) {
     return cached;
   }
 
   const looks: ReferenceLook[] = [];
+  const seenPhotoUrls = new Set<string>();
   for (let index = 0; index < Math.min(input.target, mockStyleCards.length); index += 1) {
     const style = mockStyleCards[index];
     const occasion = input.preferences.occasionTypes[index % Math.max(input.preferences.occasionTypes.length, 1)] ?? style.bestFor;
-    const query = buildReferenceQuery({
+    const queries = buildReferenceQueries({
       analysis: input.analysis,
       preferences: input.preferences,
       style,
       occasion,
     });
-    const photo = await fetchPexelsPhoto(query);
+    const photo = await fetchFirstPexelsPhoto(queries, preferencesHash, seenPhotoUrls);
     if (!photo?.src) {
       continue;
     }
+    const imageUrl = photo.src.portrait ?? photo.src.large2x ?? photo.src.large ?? photo.src.original ?? "";
+    if (!imageUrl) {
+      continue;
+    }
+    seenPhotoUrls.add(imageUrl);
 
     looks.push(
       createBaseReferenceLook({
         style,
         index,
         preferences: input.preferences,
-        imageUrl: photo.src.portrait ?? photo.src.large2x ?? photo.src.large ?? photo.src.original ?? "",
-        source: "pexels",
+        imageUrl,
+        source: "stock",
         sourceUrl: photo.url ?? null,
         sourceName: "Pexels",
         photographer: photo.photographer ?? "",
@@ -84,11 +108,44 @@ export async function getPexelsReferenceLooks(input: ReferenceProviderInput): Pr
   return looks;
 }
 
-async function fetchPexelsPhoto(query: string) {
+async function fetchFirstPexelsPhoto(
+  queries: string[],
+  preferencesHash: string,
+  seenPhotoUrls: Set<string>,
+) {
+  for (const query of queries) {
+    try {
+      const photos = await fetchPexelsPhotos(query, preferencesHash);
+      const match = photos.find((photo) => {
+        const imageUrl = photo.src?.portrait ?? photo.src?.large2x ?? photo.src?.large ?? photo.src?.original ?? "";
+        return imageUrl && !seenPhotoUrls.has(imageUrl);
+      });
+      if (match) {
+        return match;
+      }
+    } catch (error) {
+      console.warn("Pexels query failed; trying fallback query.", error);
+    }
+  }
+  return null;
+}
+
+async function fetchPexelsPhotos(query: string, preferencesHash: string) {
+  const cacheKey = createReferenceCacheKey({
+    provider: "pexels",
+    query,
+    preferencesHash,
+    target: 6,
+  });
+  const cached = getReferenceCache<PexelsPhoto[]>(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   const url = new URL("https://api.pexels.com/v1/search");
   url.searchParams.set("query", query);
   url.searchParams.set("orientation", "portrait");
-  url.searchParams.set("per_page", "1");
+  url.searchParams.set("per_page", "6");
 
   const response = await fetchWithTimeout(url.toString(), {
     headers: {
@@ -101,7 +158,9 @@ async function fetchPexelsPhoto(query: string) {
   }
 
   const data = (await response.json()) as PexelsResponse;
-  return data.photos?.[0] ?? null;
+  const photos = data.photos ?? [];
+  setReferenceCache(cacheKey, photos);
+  return photos;
 }
 
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = 4500) {

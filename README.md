@@ -66,15 +66,19 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 OPENAI_API_KEY=
+GEMINI_API_KEY=
+FAL_KEY=
 OPENAI_TEXT_MODEL=
 OPENAI_IMAGE_MODEL=
 NEXT_PUBLIC_MOCK_MODE=true
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+SHOW_PROVIDER_TEST_LAB=false
 AI_TEXT_PROVIDER=mock
 AI_IMAGE_PROVIDER=mock
 AI_IMAGE_FALLBACK_PROVIDER=
 ENABLE_PAID_IMAGE_GENERATION=false
 MAX_REAL_IMAGES_PER_BOARD=4
+MAX_REAL_TEST_IMAGES=1
 MAX_ESTIMATED_COST_PER_BOARD_USD=0.25
 OPENAI_EST_IMAGE_COST_PER_IMAGE_USD=0.04
 GEMINI_EST_IMAGE_COST_PER_IMAGE_USD=0.04
@@ -144,6 +148,28 @@ UNSPLASH_ACCESS_KEY=...
 Pexels and Unsplash modules normalize results into the same reference look schema, including image URL, source URL, photographer, and attribution text. If a provider key is missing, the provider is disabled. If an external request fails or returns too few results, the app falls back to curated local references.
 
 Google Images scraping is intentionally not supported because it is unreliable for licensing, attribution, and terms compliance. Future production reference sources should be licensed stock APIs, curated owned libraries, or retailer/product feeds with clear attribution rules.
+
+External providers are for visual reference discovery only. They are not try-on, resemblance, or paid AI image-generation providers. Reference cards show source badges and attribution links when stock provider metadata is available. The app caches reference-provider results in memory when `REFERENCE_PROVIDER_CACHE_ENABLED=true`; cache keys include provider/query/preference hashes and never store API keys.
+
+To test Pexels references:
+
+```bash
+REFERENCE_IMAGE_PROVIDER=pexels
+PEXELS_API_KEY=...
+REFERENCE_PROVIDER_MAX_RESULTS=24
+REFERENCE_PROVIDER_CACHE_ENABLED=true
+```
+
+To test Unsplash references:
+
+```bash
+REFERENCE_IMAGE_PROVIDER=unsplash
+UNSPLASH_ACCESS_KEY=...
+REFERENCE_PROVIDER_MAX_RESULTS=24
+REFERENCE_PROVIDER_CACHE_ENABLED=true
+```
+
+Leave `AI_IMAGE_PROVIDER=mock` and `ENABLE_PAID_IMAGE_GENERATION=false`; these stock reference providers do not generate personalized images.
 ## Provider and Cost Guard
 
 Current defaults are intentionally demo-safe:
@@ -155,6 +181,7 @@ AI_IMAGE_PROVIDER=mock
 AI_IMAGE_FALLBACK_PROVIDER=
 ENABLE_PAID_IMAGE_GENERATION=false
 MAX_REAL_IMAGES_PER_BOARD=4
+MAX_REAL_TEST_IMAGES=1
 MAX_ESTIMATED_COST_PER_BOARD_USD=0.25
 REFERENCE_IMAGE_PROVIDER=curated
 PEXELS_API_KEY=
@@ -172,6 +199,8 @@ The active routes use mock responses unless providers are explicitly enabled lat
 - `estimate`: paid generation is enabled and within configured limits; user confirmation is required before generation.
 
 For first real-provider testing later, set `MAX_REAL_IMAGES_PER_BOARD=1` and keep `MAX_ESTIMATED_COST_PER_BOARD_USD` low. Turn paid generation off again with `ENABLE_PAID_IMAGE_GENERATION=false`.
+
+The developer-only Real Provider Test Lab is hidden by default in production. It appears in development or when `SHOW_PROVIDER_TEST_LAB=true`. It calls only `POST /api/provider-test/generate-one`, which is hard-limited to exactly one image and requires explicit confirmation. The normal board generator should not be used for real 4/8/12/16 image tests yet.
 ## Supabase Setup
 
 1. Create a Supabase project.

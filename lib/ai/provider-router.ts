@@ -56,12 +56,30 @@ export function getMaxEstimatedCostPerBoardUsd() {
   return Number.isFinite(value) && value >= 0 ? value : 0.25;
 }
 
+export function getMaxRealTestImages() {
+  const value = Number(process.env.MAX_REAL_TEST_IMAGES ?? 1);
+  return Number.isFinite(value) && value > 0 ? Math.min(1, Math.floor(value)) : 1;
+}
+
+export function isProviderTestLabVisible() {
+  return process.env.NODE_ENV === "development" || process.env.SHOW_PROVIDER_TEST_LAB === "true";
+}
+
 export function getReferenceProviderId(): ReferenceProviderId {
   const provider = process.env.REFERENCE_IMAGE_PROVIDER;
   if (provider === "pexels" || provider === "unsplash" || provider === "curated") {
     return provider;
   }
   return "curated";
+}
+
+export function getReferenceProviderMaxResults() {
+  const value = Number(process.env.REFERENCE_PROVIDER_MAX_RESULTS ?? 24);
+  return Number.isFinite(value) ? Math.max(4, Math.min(24, Math.floor(value))) : 24;
+}
+
+export function isReferenceProviderCacheEnabled() {
+  return process.env.REFERENCE_PROVIDER_CACHE_ENABLED !== "false";
 }
 
 export function getProviderStatus(providerId: AiProviderId): AiProviderStatus {
@@ -145,11 +163,16 @@ export function getSafeProviderStatus() {
     mockMode: isMockMode(),
     paidGenerationEnabled: isPaidImageGenerationEnabled(),
     referenceProvider,
+    referenceProviderCacheEnabled: isReferenceProviderCacheEnabled(),
+    referenceProviderMaxResults: getReferenceProviderMaxResults(),
+    referenceFallbackBehavior: "External reference providers fall back to curated local references on missing keys, failures, timeouts, or too few results.",
     textProvider,
     imageProvider,
     fallbackImageProvider,
     maxRealImagesPerBoard: getMaxRealImagesPerBoard(),
+    maxRealTestImages: getMaxRealTestImages(),
     maxEstimatedCostPerBoardUsd: getMaxEstimatedCostPerBoardUsd(),
+    providerTestLabVisible: isProviderTestLabVisible(),
     providerStatus: {
       text: getProviderStatus(textProvider),
       image: getProviderStatus(imageProvider),
