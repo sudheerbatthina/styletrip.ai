@@ -5,6 +5,7 @@ import { SavedBoardDetail } from "@/components/dashboard/SavedBoardDetail";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { isPromptLabVisible } from "@/lib/ai/provider-router";
 import type {
   OutfitImage,
   Preferences,
@@ -120,6 +121,11 @@ export default async function BoardDetailPage({
               {new Date(typedBoard.created_at).toLocaleString()}
             </p>
           </div>
+          {isPromptLabVisible() ? (
+            <Button asChildLike="link" href={`/dashboard/prompt-lab?board=${typedBoard.id}&promptVersion=v4-chatgpt-style-board`} variant="outline">
+              Open in Prompt Lab
+            </Button>
+          ) : null}
         </div>
 
         {typedBoard.analysis_json && typedBoard.preferences_json ? (
@@ -231,4 +237,5 @@ export default async function BoardDetailPage({
     </>
   );
 }
+
 

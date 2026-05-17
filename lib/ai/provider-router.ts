@@ -69,6 +69,14 @@ export function isProviderTestLabExplicitlyEnabled() {
   return process.env.SHOW_PROVIDER_TEST_LAB === "true";
 }
 
+export function isPromptLabVisible() {
+  return (
+    process.env.NODE_ENV === "development" ||
+    process.env.SHOW_PROVIDER_TEST_LAB === "true" ||
+    process.env.SHOW_PROMPT_LAB === "true"
+  );
+}
+
 export function getReferenceProviderId(): ReferenceProviderId {
   const provider = process.env.REFERENCE_IMAGE_PROVIDER;
   if (provider === "pexels" || provider === "unsplash" || provider === "curated") {
@@ -208,4 +216,5 @@ export function getSafeProviderStatus() {
     },
   };
 }
+
 

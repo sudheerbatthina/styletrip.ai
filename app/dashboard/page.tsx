@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { SelectableStyle } from "@/lib/schemas";
+import { isPromptLabVisible } from "@/lib/ai/provider-router";
 import { isSupabaseConfigured, storageBuckets } from "@/lib/supabase/config";
 import { getCurrentUser } from "@/lib/supabase/server";
 
@@ -114,6 +115,19 @@ export default async function DashboardPage() {
         <StyleMemoryCard />
         <ProviderStatusCard />
         <SetupHealthCard compact />
+        {isPromptLabVisible() ? (
+          <Card>
+            <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold">Prompt Lab</p>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  Generate copyable ChatGPT-style prompts and import manual result images. No paid APIs are called.
+                </p>
+              </div>
+              <Button asChildLike="link" href="/dashboard/prompt-lab" variant="outline">Open Prompt Lab</Button>
+            </CardContent>
+          </Card>
+        ) : null}
         {showProviderTestLab ? <ProviderTestLabCard /> : null}
 
         {boardsWithImages.length === 0 ? (
@@ -172,4 +186,5 @@ export default async function DashboardPage() {
     </>
   );
 }
+
 

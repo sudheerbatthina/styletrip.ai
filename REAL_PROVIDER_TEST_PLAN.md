@@ -162,3 +162,20 @@ Use this exact order for the first paid test:
 11. Immediately return to safe defaults: `ENABLE_PAID_IMAGE_GENERATION=false`, `AI_IMAGE_PROVIDER=mock`, `NEXT_PUBLIC_MOCK_MODE=true`, and `SHOW_PROVIDER_TEST_LAB=false` when finished.
 
 Never use the normal 4/8/12/16 board generator for paid testing. That flow must remain mock-safe until a separate implementation explicitly connects and gates it.
+
+## Prompt Lab Dry Run
+
+Prompt Lab is separate from real provider testing. It never calls paid APIs.
+
+Safe manual test flow:
+
+1. Set `SHOW_PROMPT_LAB=true` or run in development.
+2. Open `/dashboard/prompt-lab`.
+3. Select a saved board or use the manual fallback.
+4. Choose `v4-chatgpt-style-board`, `v5-chatgpt-try-different-styles`, or `v6-shopping-style-reference-board`.
+5. Copy the prompt and optionally run it manually in ChatGPT.
+6. Upload the manually generated image in Prompt Lab.
+7. Review the local preview and quality checklist.
+8. If `manual_prompt_results` migration is applied, confirm the import appears in Recent manual imports and opens at `/dashboard/prompt-lab/results/[id]`.
+
+This flow is useful for prompt experimentation before any provider API work. It does not change normal mock board generation or the one-image Provider Test Lab guards.

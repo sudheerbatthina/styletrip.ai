@@ -327,3 +327,22 @@ Email/password auth is implemented for MVP. Google Sign-In is intentionally not 
 - Google Sign-In: add Supabase OAuth after email/password MVP is stable.
 - Mobile app: package the upload-to-board flow once the web workflow is validated.
 
+
+## Prompt Lab Manual Workflow
+
+Prompt Lab is a developer/demo-only copy-paste workflow for testing strong ChatGPT-style fashion board prompts without adding any paid API dependency to the app. It appears in development, when `SHOW_PROVIDER_TEST_LAB=true`, or when `SHOW_PROMPT_LAB=true`.
+
+Prompt Lab can:
+
+- Load a recent saved board and its selected reference looks.
+- Include saved source-photo instructions when a signed source photo URL is available.
+- Generate copyable prompts for `v4-chatgpt-style-board`, `v5-chatgpt-try-different-styles`, and `v6-shopping-style-reference-board`.
+- Import a manually generated image back into StyleTrip as a user-provided asset.
+- Store manual imports in the optional `manual_prompt_results` table and the `generated-boards` bucket.
+- Capture a lightweight quality checklist and a `useAsInspiration` metadata flag.
+
+Prompt Lab does not call ChatGPT, OpenAI, Gemini, fal, or any image-generation API. The expected manual loop is: copy prompt, run it manually in ChatGPT if desired, download the result image, then upload/import it into StyleTrip.
+
+Apply `supabase/migrations/202605170001_manual_prompt_results.sql` to persist manual imports. If that migration is missing, Prompt Lab still shows local previews and explains that persistence requires the migration.
+
+Future TODO: parse imported boards into structured reference looks/items and let selected manual results seed future reference discovery.
