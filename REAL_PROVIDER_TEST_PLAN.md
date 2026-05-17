@@ -101,7 +101,9 @@ Open the dashboard and use **Real Provider Test Lab**. It is developer-only and 
 Rules:
 
 - Select exactly one provider.
-- Select one reference look.
+- Select one reference look, either from the manual fallback or from a recent saved board.
+- From a saved board detail page, use **Test this look in Provider Lab** to prefill board/look context.
+- Use the saved source photo only if Setup Health is green and you intend to test resemblance guidance.
 - Upload an optional reference image if needed.
 - Check the explicit confirmation box.
 - Generate exactly one image.
@@ -119,6 +121,7 @@ Review:
 - Setup Health page at `/dashboard/setup-health`
 - API response from `/api/provider-status?imageCount=1`
 - Recent Test Runs in the lab
+- Test run detail at `/dashboard/provider-test/runs/[id]`
 - Saved prompt version and prompt used
 - Quality checklist notes
 - Server logs

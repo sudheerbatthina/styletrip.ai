@@ -61,13 +61,24 @@ export type ProviderTestRunHistoryItem = {
   createdAt: string;
 };
 
+export type ProviderTestRunDetail = ProviderTestRunHistoryItem & {
+  actualCostUsd?: number | null;
+  imageCount: number;
+  selectedReferenceLook?: ReferenceLook | null;
+  promptUsed?: string | null;
+};
+
 type ProviderTestRunRow = {
   id: string;
   provider: AiProviderId;
   model: string | null;
   status: ProviderTestRunStatus;
+  selected_reference_look_json?: ReferenceLook | null;
   prompt_version: string | null;
+  prompt_used?: string | null;
   estimated_cost_usd: number | string | null;
+  actual_cost_usd?: number | string | null;
+  image_count?: number | null;
   output_image_path: string | null;
   output_image_url: string | null;
   error_message: string | null;
@@ -196,27 +207,51 @@ export async function getProviderTestRuns(limit = 8) {
   }
 
   const rows = (query.data ?? []) as ProviderTestRunRow[];
-  const runs = await Promise.all(
-    rows.map(async (row) => ({
-      id: row.id,
-      provider: row.provider,
-      model: row.model,
-      status: row.status,
-      promptVersion: row.prompt_version,
-      estimatedCostUsd:
-        row.estimated_cost_usd === null ? null : Number(row.estimated_cost_usd),
-      outputImageUrl: await getDisplayUrl(row.output_image_path, row.output_image_url),
-      errorMessage: row.error_message,
-      metadata: row.metadata_json,
-      createdAt: row.created_at,
-    })),
-  );
+  const runs = await Promise.all(rows.map(rowToHistoryItem));
 
   return {
     runs,
     available: true,
     reason: null,
   };
+}
+
+export async function getProviderTestRun(runId: string) {
+  const { supabase, user } = await getCurrentUser();
+  if (!supabase || !user) {
+    return { run: null, available: false, reason: "Sign in to view provider test runs." };
+  }
+
+  const query = await supabase
+    .from("provider_test_runs")
+    .select(
+      "id, provider, model, status, selected_reference_look_json, prompt_version, prompt_used, estimated_cost_usd, actual_cost_usd, image_count, output_image_path, output_image_url, error_message, metadata_json, created_at",
+    )
+    .eq("id", runId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (query.error) {
+    return {
+      run: null,
+      available: false,
+      reason: isMissingTableError(query.error)
+        ? "provider_test_runs migration has not been applied yet."
+        : query.error.message,
+    };
+  }
+
+  const row = query.data as ProviderTestRunRow;
+  const history = await rowToHistoryItem(row);
+  const run: ProviderTestRunDetail = {
+    ...history,
+    actualCostUsd: row.actual_cost_usd === null || row.actual_cost_usd === undefined ? null : Number(row.actual_cost_usd),
+    imageCount: row.image_count ?? 1,
+    selectedReferenceLook: row.selected_reference_look_json ?? null,
+    promptUsed: row.prompt_used ?? null,
+  };
+
+  return { run, available: true, reason: null };
 }
 
 export async function updateProviderTestRunQuality(
@@ -261,6 +296,22 @@ export async function updateProviderTestRunQuality(
   }
 
   return { saved: true, reason: null };
+}
+
+async function rowToHistoryItem(row: ProviderTestRunRow): Promise<ProviderTestRunHistoryItem> {
+  return {
+    id: row.id,
+    provider: row.provider,
+    model: row.model,
+    status: row.status,
+    promptVersion: row.prompt_version,
+    estimatedCostUsd:
+      row.estimated_cost_usd === null ? null : Number(row.estimated_cost_usd),
+    outputImageUrl: await getDisplayUrl(row.output_image_path, row.output_image_url),
+    errorMessage: row.error_message,
+    metadata: row.metadata_json,
+    createdAt: row.created_at,
+  };
 }
 
 async function getDisplayUrl(path: string | null, fallbackUrl: string | null) {

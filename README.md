@@ -216,6 +216,13 @@ The test lab supports prompt versioning and manual quality review:
 When the optional `provider_test_runs` migration is applied, signed-in users get recent test history in the lab. Each run stores provider, model, status, selected reference look JSON, prompt version, prompt used, estimated cost, image count, output image path/URL when storage succeeds, error message, and metadata. Generated test images are saved to the private `generated-outfits` bucket under `{user_id}/provider-tests/{run_id}.*` when Storage is configured. If the migration or Storage bucket is missing, the lab still works and reports that history/storage was skipped.
 
 After a result appears, use the manual checklist to mark Pass or Needs work, note issues such as cropped body, weak resemblance, outfit mismatch, overly formal styling, or artifacts, and save that quality metadata back to the test run when available. The checklist only records feedback; it never regenerates automatically.
+Saved-look provider testing:
+
+- The Provider Test Lab can load recent saved boards and their selected reference looks.
+- Saved board source photos are offered as optional resemblance/reference inputs when available.
+- Saved board detail pages show a developer-only **Test this look in Provider Lab** action when the lab is visible.
+- Test run details are available at `/dashboard/provider-test/runs/[id]` with image, provider/model/status, prompt version, selected look, prompt used, quality checklist, tuning notes, and safe metadata.
+- This still does not connect real providers to the normal 4/8/12/16 board generator.
 ## Setup Health
 
 Open `/dashboard/setup-health` or use the compact Setup Health card on the dashboard before any real-provider test. The check is read-only and returns only safe booleans/messages from `GET /api/setup-health`; it never exposes API keys or raw secrets.
@@ -295,6 +302,7 @@ If bucket creation is blocked in your Supabase environment, create them manually
 - `GET /api/style-feedback` loads Style Memory for the current user.
 - `POST /api/style-feedback` saves a feedback event opportunistically.
 - `DELETE /api/style-feedback` resets the current user's Style Memory.
+- `GET /api/provider-test/boards` loads recent saved boards and reference looks for the Provider Test Lab.
 - `POST /api/provider-test/generate-one` runs the guarded developer-only one-image provider test.
 - `GET /api/provider-test/runs` loads recent provider test history when the optional migration exists.
 - `PATCH /api/provider-test/runs` saves manual quality checklist metadata for a test run.

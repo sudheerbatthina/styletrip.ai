@@ -23,10 +23,8 @@ import {
   persistProviderTestRun,
   type ProviderTestRunStatus,
 } from "@/lib/provider-test/provider-test-runs";
-import {
-  imageInputSchema,
-  referenceLookSchema,
-} from "@/lib/schemas";
+import { imageInputSchema, referenceLookSchema } from "@/lib/schemas";
+import { getSetupHealth } from "@/lib/setup/setup-health";
 
 export const runtime = "nodejs";
 
@@ -36,6 +34,10 @@ const providerTestRequestSchema = z.object({
   analysisSummary: z.string().max(1000).optional().default(""),
   resemblanceMode: z.string().max(80).optional().default("balanced"),
   promptVersion: z.enum(providerTestPromptVersions).optional().default(defaultProviderTestPromptVersion),
+  boardId: z.string().uuid().nullable().optional(),
+  sourcePhotoId: z.string().uuid().nullable().optional(),
+  sourcePhotoUsed: z.boolean().optional().default(false),
+  aspectRatio: z.string().nullable().optional(),
   image: imageInputSchema.nullable().optional(),
   explicitConfirm: z.boolean(),
 });
@@ -59,6 +61,7 @@ function jsonResponse(
 export async function POST(request: Request) {
   let requestedProvider: AiProviderId = "mock";
   let lastProviderInput: OneImageProviderInput | null = null;
+  let lastRequestInput: ProviderTestRequest | null = null;
   let lastEstimateUsd = 0;
   try {
     if (!isProviderTestLabVisible()) {
@@ -92,10 +95,13 @@ export async function POST(request: Request) {
 
     const input = parsed.data;
     requestedProvider = input.provider;
+    lastRequestInput = input;
+    const setupHealth = await getSafeSetupHealthSnapshot();
+
     if (input.provider !== "mock" && !isProviderTestLabExplicitlyEnabled()) {
       const persistence = await persistRequestRun(input, "blocked", {
         errorMessage: "Real provider testing requires SHOW_PROVIDER_TEST_LAB=true.",
-        metadata: { showProviderTestLab: false },
+        metadata: { showProviderTestLab: false, setupHealth },
       });
       return jsonResponse(
         {
@@ -104,7 +110,7 @@ export async function POST(request: Request) {
           estimatedCostUsd: 0,
           imageUrlOrBase64: null,
           message: "Real provider testing requires SHOW_PROVIDER_TEST_LAB=true.",
-          metadata: { showProviderTestLab: false, persistence },
+          metadata: { showProviderTestLab: false, setupHealth, persistence },
         },
         403,
       );
@@ -114,7 +120,7 @@ export async function POST(request: Request) {
     if (maxTestImages !== 1) {
       const persistence = await persistRequestRun(input, "blocked", {
         errorMessage: "Provider Test Lab is hard-limited to exactly 1 image.",
-        metadata: { maxTestImages },
+        metadata: { maxTestImages, setupHealth },
       });
       return jsonResponse(
         {
@@ -123,7 +129,7 @@ export async function POST(request: Request) {
           estimatedCostUsd: 0,
           imageUrlOrBase64: null,
           message: "Provider Test Lab is hard-limited to exactly 1 image.",
-          metadata: { maxTestImages, persistence },
+          metadata: { maxTestImages, setupHealth, persistence },
         },
         400,
       );
@@ -132,6 +138,7 @@ export async function POST(request: Request) {
     if (!input.explicitConfirm) {
       const persistence = await persistRequestRun(input, "blocked", {
         errorMessage: "Explicit confirmation is required before one-image provider testing.",
+        metadata: { setupHealth },
       });
       return jsonResponse(
         {
@@ -140,7 +147,7 @@ export async function POST(request: Request) {
           estimatedCostUsd: 0,
           imageUrlOrBase64: null,
           message: "Explicit confirmation is required before one-image provider testing.",
-          metadata: { persistence },
+          metadata: { setupHealth, persistence },
         },
         400,
       );
@@ -158,7 +165,7 @@ export async function POST(request: Request) {
       const persistence = await persistRequestRun(input, "blocked", {
         estimatedCostUsd: estimate.estimatedTotalCostUsd,
         errorMessage: estimate.reason,
-        metadata: { estimate },
+        metadata: { estimate, setupHealth },
       });
       return jsonResponse(
         {
@@ -167,7 +174,7 @@ export async function POST(request: Request) {
           estimatedCostUsd: estimate.estimatedTotalCostUsd,
           imageUrlOrBase64: null,
           message: estimate.reason,
-          metadata: { estimate, persistence },
+          metadata: { estimate, setupHealth, persistence },
         },
         402,
       );
@@ -178,7 +185,7 @@ export async function POST(request: Request) {
       const persistence = await persistRequestRun(input, "blocked", {
         estimatedCostUsd: estimate.estimatedTotalCostUsd,
         errorMessage: providerStatus.reason ?? `${input.provider} provider is not enabled.`,
-        metadata: { estimate, providerStatus },
+        metadata: { estimate, providerStatus, setupHealth },
       });
       return jsonResponse(
         {
@@ -187,7 +194,7 @@ export async function POST(request: Request) {
           estimatedCostUsd: estimate.estimatedTotalCostUsd,
           imageUrlOrBase64: null,
           message: providerStatus.reason ?? `${input.provider} provider is not enabled.`,
-          metadata: { estimate, providerStatus, persistence },
+          metadata: { estimate, providerStatus, setupHealth, persistence },
         },
         providerStatus.missingKey ? 400 : 501,
       );
@@ -204,6 +211,7 @@ export async function POST(request: Request) {
     };
     lastProviderInput = providerInput;
     const result = await generateOneImage(providerInput);
+    const savedContext = buildSavedContextMetadata(input);
     const persistence = await persistProviderTestRun({
       provider: input.provider,
       model: result.metadata.model ?? null,
@@ -216,6 +224,8 @@ export async function POST(request: Request) {
       metadata: {
         estimate,
         ...result.metadata,
+        ...savedContext,
+        setupHealth,
         maxImages: 1,
       },
     });
@@ -232,6 +242,8 @@ export async function POST(request: Request) {
       metadata: {
         estimate,
         ...result.metadata,
+        ...savedContext,
+        setupHealth,
         maxImages: 1,
         persistence,
       },
@@ -250,6 +262,7 @@ export async function POST(request: Request) {
           errorMessage: message,
           metadata: {
             provider: requestedProvider,
+            ...(lastRequestInput ? buildSavedContextMetadata(lastRequestInput) : {}),
             imageCount: 1,
             status: "error",
           },
@@ -316,7 +329,37 @@ async function persistRequestRun(
     errorMessage: options.errorMessage ?? null,
     metadata: {
       ...(options.metadata ?? {}),
+      ...buildSavedContextMetadata(input),
       imageCount: 1,
     },
   });
+}
+
+function buildSavedContextMetadata(input: ProviderTestRequest) {
+  return {
+    board_id: input.boardId ?? null,
+    source_photo_id: input.sourcePhotoId ?? null,
+    source_photo_used: input.sourcePhotoUsed,
+    reference_look_id: input.selectedReferenceLook.id,
+    reference_look_title: input.selectedReferenceLook.title,
+    resemblance_mode: input.resemblanceMode,
+    aspect_ratio: input.aspectRatio ?? null,
+    prompt_version: input.promptVersion,
+    selected_provider: input.provider,
+  };
+}
+
+async function getSafeSetupHealthSnapshot() {
+  try {
+    const health = await getSetupHealth();
+    return {
+      generatedAt: health.generatedAt,
+      summary: health.summary,
+    };
+  } catch (error) {
+    return {
+      safeToTestOneRealImage: false,
+      message: error instanceof Error ? error.message : "Setup Health unavailable.",
+    };
+  }
 }

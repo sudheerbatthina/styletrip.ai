@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { AppNav } from "@/components/common/AppNav";
 import { SavedBoardDetail } from "@/components/dashboard/SavedBoardDetail";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type {
   OutfitImage,
@@ -44,6 +45,10 @@ function getAverageMatchScore(styles: SelectableStyle[]) {
   return Math.round(scores.reduce((total, score) => total + score, 0) / scores.length);
 }
 export const dynamic = "force-dynamic";
+
+const showProviderTestLab =
+  process.env.NODE_ENV === "development" ||
+  process.env.SHOW_PROVIDER_TEST_LAB === "true";
 
 export default async function BoardDetailPage({
   params,
@@ -187,6 +192,17 @@ export default async function BoardDetailPage({
                         <p className="mt-1 text-xs leading-5 text-muted-foreground">
                           {style.items.join(", ")}
                         </p>
+                        {showProviderTestLab && "referenceImageUrl" in style ? (
+                          <Button
+                            className="mt-3 w-full"
+                            variant="outline"
+                            size="sm"
+                            asChildLike="link"
+                            href={`/dashboard?providerTestBoard=${typedBoard.id}&providerTestLook=${style.id}`}
+                          >
+                            Test this look in Provider Lab
+                          </Button>
+                        ) : null}
                         {"referenceImageUrl" in style && style.attributionText ? (
                           <p className="mt-2 text-xs leading-5 text-muted-foreground">
                             {style.sourceUrl ? (
