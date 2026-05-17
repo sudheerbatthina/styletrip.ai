@@ -6,6 +6,7 @@ import { AppNav } from "@/components/common/AppNav";
 import { ConfigWarning } from "@/components/common/ConfigWarning";
 import { ProviderStatusCard } from "@/components/dashboard/ProviderStatusCard";
 import { ProviderTestLabCard } from "@/components/dashboard/ProviderTestLabCard";
+import { SetupHealthCard } from "@/components/dashboard/SetupHealthCard";
 import { StyleMemoryCard } from "@/components/dashboard/StyleMemoryCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -112,6 +113,7 @@ export default async function DashboardPage() {
 
         <StyleMemoryCard />
         <ProviderStatusCard />
+        <SetupHealthCard compact />
         {showProviderTestLab ? <ProviderTestLabCard /> : null}
 
         {boardsWithImages.length === 0 ? (

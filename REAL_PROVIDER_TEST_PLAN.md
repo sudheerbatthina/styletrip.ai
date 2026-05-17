@@ -61,6 +61,20 @@ Use the prompt selector before running:
 
 If you are signed in and have run `supabase/migrations/202605150002_provider_test_runs.sql`, the run should appear in **Recent Test Runs**. If the migration is missing, the lab should still work and simply skip persisted history.
 
+## Step 2.75: Run Setup Health
+
+Open `/dashboard/setup-health` before enabling paid testing. The page should show what is missing without exposing secrets.
+
+Confirm:
+
+- Base schema migration is applied.
+- `style_feedback` migration is applied.
+- `provider_test_runs` migration is applied.
+- Storage buckets exist: `user-photos`, `generated-outfits`, `generated-boards`.
+- Provider Test Lab is visible only because you are in development or intentionally set `SHOW_PROVIDER_TEST_LAB=true`.
+- Normal board generation is still protected.
+
+Do not continue to a real OpenAI test until **Safe to test one real image** is `yes`.
 ## Step 3: Prepare One-Image Paid Test
 
 Only when ready:
@@ -102,6 +116,7 @@ Do not test the normal 4/8/12/16 board generator with real providers yet.
 Review:
 
 - Provider status panel
+- Setup Health page at `/dashboard/setup-health`
 - API response from `/api/provider-status?imageCount=1`
 - Recent Test Runs in the lab
 - Saved prompt version and prompt used

@@ -216,6 +216,21 @@ The test lab supports prompt versioning and manual quality review:
 When the optional `provider_test_runs` migration is applied, signed-in users get recent test history in the lab. Each run stores provider, model, status, selected reference look JSON, prompt version, prompt used, estimated cost, image count, output image path/URL when storage succeeds, error message, and metadata. Generated test images are saved to the private `generated-outfits` bucket under `{user_id}/provider-tests/{run_id}.*` when Storage is configured. If the migration or Storage bucket is missing, the lab still works and reports that history/storage was skipped.
 
 After a result appears, use the manual checklist to mark Pass or Needs work, note issues such as cropped body, weak resemblance, outfit mismatch, overly formal styling, or artifacts, and save that quality metadata back to the test run when available. The checklist only records feedback; it never regenerates automatically.
+## Setup Health
+
+Open `/dashboard/setup-health` or use the compact Setup Health card on the dashboard before any real-provider test. The check is read-only and returns only safe booleans/messages from `GET /api/setup-health`; it never exposes API keys or raw secrets.
+
+Setup Health checks:
+
+- Supabase URL, anon key, and server-side service role key presence.
+- Auth session status for the current request.
+- Required private Storage buckets: `user-photos`, `generated-outfits`, and `generated-boards`.
+- Required tables: `profiles`, `user_photos`, `boards`, `board_images`, `generations`, `style_feedback`, and `provider_test_runs`.
+- Migration checklist inferred from table existence.
+- Reference provider status and key presence booleans.
+- Provider Test Lab visibility, paid-generation flag, OpenAI/Gemini/fal key booleans, max real test images, cost limit, and normal board-generation guard status.
+
+The final summary, **Safe to test one real image**, should be `yes` only when the Provider Test Lab is visible, paid generation is intentionally enabled, `MAX_REAL_TEST_IMAGES=1`, `OPENAI_API_KEY` is configured, `generated-outfits` exists, `provider_test_runs` exists, a cost limit is configured, and normal board generation remains protected. If any item is missing, Setup Health lists the suggested fix.
 ## Supabase Setup
 
 1. Create a Supabase project.
