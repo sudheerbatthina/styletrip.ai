@@ -116,6 +116,23 @@ export async function POST(request: Request) {
       );
     }
 
+    if (input.provider !== "mock" && !isSetupHealthSafeForRealProvider(setupHealth)) {
+      const persistence = await persistRequestRun(input, "blocked", {
+        errorMessage: "Setup Health is not green yet. Run mock tests only until one-image readiness is complete.",
+        metadata: { setupHealth },
+      });
+      return jsonResponse(
+        {
+          status: "blocked",
+          provider: input.provider,
+          estimatedCostUsd: 0,
+          imageUrlOrBase64: null,
+          message: "Setup Health is not green yet. Run mock tests only until one-image readiness is complete.",
+          metadata: { setupHealth, persistence },
+        },
+        403,
+      );
+    }
     const maxTestImages = getMaxRealTestImages();
     if (maxTestImages !== 1) {
       const persistence = await persistRequestRun(input, "blocked", {
@@ -349,6 +366,12 @@ function buildSavedContextMetadata(input: ProviderTestRequest) {
   };
 }
 
+function isSetupHealthSafeForRealProvider(setupHealth: Awaited<ReturnType<typeof getSafeSetupHealthSnapshot>>) {
+  if ("summary" in setupHealth) {
+    return setupHealth.summary?.safeToTestOneRealImage === true;
+  }
+  return false;
+}
 async function getSafeSetupHealthSnapshot() {
   try {
     const health = await getSetupHealth();
@@ -363,3 +386,4 @@ async function getSafeSetupHealthSnapshot() {
     };
   }
 }
+

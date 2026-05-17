@@ -144,3 +144,21 @@ MAX_REAL_IMAGES_PER_BOARD=4
 ```
 
 Run one mock board after disabling paid generation to confirm the app is back in free mode.
+
+## Safest OpenAI One-Image Flow
+
+Use this exact order for the first paid test:
+
+1. Run the Real Provider Test Lab with `mock` and confirm it creates one local image.
+2. Open `/dashboard/setup-health` and confirm the app says **Safe to test one real image: yes**.
+3. Set `SHOW_PROVIDER_TEST_LAB=true`.
+4. Set `MAX_REAL_TEST_IMAGES=1` exactly.
+5. Set `ENABLE_PAID_IMAGE_GENERATION=true`.
+6. Set `OPENAI_API_KEY` server-side only.
+7. Restart the dev server so env changes are loaded.
+8. In the lab, select `openai`, choose one saved-board look or upload a manual reference image, and review the cost estimate.
+9. Check the explicit confirmation box and generate exactly one image.
+10. Open the run detail page, review the prompt/result/checklist, and then check the OpenAI dashboard for actual usage.
+11. Immediately return to safe defaults: `ENABLE_PAID_IMAGE_GENERATION=false`, `AI_IMAGE_PROVIDER=mock`, `NEXT_PUBLIC_MOCK_MODE=true`, and `SHOW_PROVIDER_TEST_LAB=false` when finished.
+
+Never use the normal 4/8/12/16 board generator for paid testing. That flow must remain mock-safe until a separate implementation explicitly connects and gates it.

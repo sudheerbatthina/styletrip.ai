@@ -58,7 +58,7 @@ export function getMaxEstimatedCostPerBoardUsd() {
 
 export function getMaxRealTestImages() {
   const value = Number(process.env.MAX_REAL_TEST_IMAGES ?? 1);
-  return Number.isFinite(value) && value > 0 ? Math.min(1, Math.floor(value)) : 1;
+  return Number.isFinite(value) && value > 0 ? Math.floor(value) : 1;
 }
 
 export function isProviderTestLabVisible() {
@@ -208,3 +208,4 @@ export function getSafeProviderStatus() {
     },
   };
 }
+
