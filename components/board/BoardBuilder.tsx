@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
@@ -127,6 +128,7 @@ function StyleTripApp({
   onSaveBoard?: (payload: BoardBuilderSavePayload) => Promise<void>;
 }) {
   const { toast } = useToast();
+  const searchParams = useSearchParams();
   const [step, setStep] = useState<Step>("upload");
   const [image, setImage] = useState<ImageInput | null>(null);
   const [preferences, setPreferences] = useState<Preferences>(defaultPreferences);
@@ -139,6 +141,9 @@ function StyleTripApp({
   const [feedback, setFeedback] = useState<ReferenceFeedback>(emptyFeedback);
   const [styleMemory, setStyleMemory] = useState<StyleMemorySummary>(emptyStyleMemory);
   const [providerStatus, setProviderStatus] = useState<ProviderStatusResponse | null>(null);
+  const [importedReferenceLooks, setImportedReferenceLooks] = useState<ReferenceLook[]>([]);
+  const [importedReferenceSourceId, setImportedReferenceSourceId] = useState<string | null>(null);
+  const [importedReferenceMessage, setImportedReferenceMessage] = useState("");
   const [showGenerationConfirm, setShowGenerationConfirm] = useState(false);
   const [pendingGenerationInstruction, setPendingGenerationInstruction] = useState<string | undefined>();
   const [outfitImages, setOutfitImages] = useState<OutfitImage[]>([]);
@@ -313,6 +318,42 @@ function StyleTripApp({
 
   async function handleDiscoverLooks() {
     if (!analysis) {
+      return;
+    }
+
+    if (importedReferenceSourceId && importedReferenceLooks.length > 0) {
+      if (importedReferenceLooks.length < 4) {
+        toast({
+          title: "Add more extracted looks",
+          description: "At least 4 extracted looks are needed to create a mock board from a Prompt Lab import.",
+        });
+        return;
+      }
+
+      const manualStylePlan: InternalStylePlan = {
+        stylePlanId: `manual-import-${importedReferenceSourceId}`,
+        occasionFocus: uniqueIds(importedReferenceLooks.map((look) => look.occasion)).slice(0, 6),
+        recommendedDirections: importedReferenceLooks.slice(0, 6).map((look) => ({
+          id: look.id,
+          title: look.title,
+          reason: look.whyItFits,
+          colors: look.colorMood.split(/[\/,]/).map((item) => item.trim()).filter(Boolean),
+          silhouettes: [look.fit],
+          avoid: [],
+          occasion: look.occasion,
+        })),
+        overallGuidance: "These looks were manually extracted from a Prompt Lab imported board and can be reused as visual reference looks.",
+      };
+
+      setStylePlan(manualStylePlan);
+      setReferenceLooks(importedReferenceLooks);
+      setVisibleLookIds(getInitialVisibleIds(importedReferenceLooks, styleTarget, feedback));
+      setSelectedIds([]);
+      setStep("looks");
+      toast({
+        title: "Prompt Lab looks loaded",
+        description: "Select extracted looks from your manual import, then generate a mock board as usual.",
+      });
       return;
     }
 
@@ -622,6 +663,7 @@ function StyleTripApp({
               title="Upload and set the trip direction"
               description="Add a full-body photo and a few trip preferences. Your photo is used for styling guidance and resemblance only."
             />
+            {importedReferenceMessage ? <p className="rounded-lg border bg-muted/35 p-4 text-sm leading-6 text-muted-foreground">{importedReferenceMessage}</p> : null}
             <div className="grid gap-6 lg:grid-cols-[430px_minmax(0,1fr)]">
               <PhotoUploader
                 value={image}
@@ -699,6 +741,7 @@ function StyleTripApp({
                         ))}
                       </div>
                     </div>
+                    {importedReferenceSourceId ? <Badge className="bg-background text-foreground">From Prompt Lab import</Badge> : null}
                     <ReferenceFeedbackBar
                       feedback={feedback}
                       selectedCount={selectedIds.length}
@@ -1210,3 +1253,6 @@ function HistoryGallery({ history }: { history: GeneratedHistoryItem[] }) {
     </section>
   );
 }
+
+
+

@@ -346,3 +346,13 @@ Prompt Lab does not call ChatGPT, OpenAI, Gemini, fal, or any image-generation A
 Apply `supabase/migrations/202605170001_manual_prompt_results.sql` to persist manual imports. If that migration is missing, Prompt Lab still shows local previews and explains that persistence requires the migration.
 
 Future TODO: parse imported boards into structured reference looks/items and let selected manual results seed future reference discovery.
+
+## Manual Look Extraction
+
+Prompt Lab imports can now be turned into structured, reusable looks without paid AI extraction. Open a manual import detail page at `/dashboard/prompt-lab/results/[id]` and use **Extract looks from this board** to manually add/edit/delete looks with title, occasion, fit, color mood, items, colors, footwear, accessories, why-it-works notes, and optional match score.
+
+Apply `supabase/migrations/202605170002_manual_extracted_looks.sql` to persist extracted looks. If the migration is missing, the editor still allows local draft editing and shows a persistence warning, but extracted looks will not survive refresh.
+
+Once an import has at least 4 persisted extracted looks, use **Create board from extracted looks** or open `/boards/new?source=manual-result&id=...`. The normal builder still asks for a photo and preferences, then the Pick Looks step displays the imported looks with a **From Prompt Lab import** badge. Mock board generation, save, download, dashboard, and detail behavior remain unchanged.
+
+Future TODO: add optional AI/OCR extraction that proposes structured looks from imported boards, then let the user review before saving.

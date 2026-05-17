@@ -141,7 +141,7 @@ export const referenceLookSchema = z.object({
   items: z.array(z.string()),
   whyItFits: z.string(),
   referenceImageUrl: z.string().min(20),
-  source: z.enum(["mock", "curated", "stock", "catalog", "pexels", "unsplash"]),
+  source: z.enum(["mock", "curated", "stock", "catalog", "pexels", "unsplash", "manual"]),
   sourceUrl: z.string().nullable(),
   sourceName: z.string().optional().default(""),
   photographer: z.string().optional().default(""),
@@ -251,6 +251,7 @@ export type SaveBoardRequest = z.infer<typeof saveBoardRequestSchema>;
 export type StyleFeedbackRequest = z.infer<typeof styleFeedbackRequestSchema>;
 export type AspectRatio = z.infer<typeof aspectRatioSchema>;
 export type ResemblanceMode = z.infer<typeof resemblanceModeSchema>;
+
 
 
 

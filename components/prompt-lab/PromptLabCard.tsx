@@ -409,8 +409,10 @@ export function PromptLabCard() {
                 {result.importedImageUrl ? <img src={result.importedImageUrl} alt="Manual prompt result" className="aspect-[4/3] w-full rounded border bg-muted object-contain p-1" /> : <div className="flex aspect-[4/3] items-center justify-center rounded border bg-muted text-muted-foreground"><ImagePlus className="h-5 w-5" /></div>}
                 <div className="mt-3 flex flex-wrap gap-1"><Badge>{result.promptVersion ?? "prompt"}</Badge>{result.boardTitle ? <Badge>{result.boardTitle}</Badge> : null}</div>
                 <p className="mt-2 text-xs text-muted-foreground">{new Date(result.createdAt).toLocaleString()}</p>
+                <p className="mt-2 text-xs text-muted-foreground">Extracted looks: {getExtractedLookCount(result)}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Button type="button" variant="ghost" size="sm" asChildLike="link" href={`/dashboard/prompt-lab/results/${result.id}`} className="px-0"><ExternalLink className="h-3.5 w-3.5" />Open detail</Button>
+                  <Button type="button" variant="ghost" size="sm" asChildLike="link" href={`/dashboard/prompt-lab/results/${result.id}`} className="px-0"><ExternalLink className="h-3.5 w-3.5" />Extract looks</Button>
+                  {getExtractedLookCount(result) >= 4 ? <Button type="button" variant="outline" size="sm" asChildLike="link" href={`/boards/new?source=manual-result&id=${result.id}`}>Use in board</Button> : null}
                   <Button type="button" variant="outline" size="sm" onClick={() => void markUseAsInspiration(result.id)}>Use as inspiration</Button>
                 </div>
               </div>
@@ -427,6 +429,11 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   return <div className="space-y-2"><Label>{label}</Label>{children}</div>;
 }
 
+function getExtractedLookCount(result: ManualPromptResult) {
+  const count = result.metadata?.extractedLookCount;
+  return typeof count === "number" ? count : 0;
+}
+
 function readFileAsDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -435,5 +442,6 @@ function readFileAsDataUrl(file: File) {
     reader.readAsDataURL(file);
   });
 }
+
 
 

@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
 import { AppNav } from "@/components/common/AppNav";
+import { ManualExtractionEditor } from "@/components/prompt-lab/ManualExtractionEditor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -105,6 +106,11 @@ export default async function ManualPromptResultPage({
             </Card>
           </div>
         </div>
+        <ManualExtractionEditor
+          manualResultId={result.id}
+          boardId={result.boardId}
+          importedImageUrl={result.importedImageUrl}
+        />
       </main>
     </>
   );
