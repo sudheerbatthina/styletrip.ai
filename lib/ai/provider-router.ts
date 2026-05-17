@@ -65,6 +65,10 @@ export function isProviderTestLabVisible() {
   return process.env.NODE_ENV === "development" || process.env.SHOW_PROVIDER_TEST_LAB === "true";
 }
 
+export function isProviderTestLabExplicitlyEnabled() {
+  return process.env.SHOW_PROVIDER_TEST_LAB === "true";
+}
+
 export function getReferenceProviderId(): ReferenceProviderId {
   const provider = process.env.REFERENCE_IMAGE_PROVIDER;
   if (provider === "pexels" || provider === "unsplash" || provider === "curated") {
@@ -108,6 +112,14 @@ export function getProviderStatus(providerId: AiProviderId): AiProviderStatus {
       missingKey: true,
       missingKeyName: missingKey,
       reason: `${missingKey} is not configured for ${providerId}.`,
+    };
+  }
+
+  if (providerId === "openai") {
+    return {
+      id: providerId,
+      enabled: true,
+      reason: "OpenAI one-image test provider is available only through the developer test lab.",
     };
   }
 

@@ -204,6 +204,18 @@ The active routes use mock responses unless providers are explicitly enabled lat
 For first real-provider testing later, set `MAX_REAL_IMAGES_PER_BOARD=1` and keep `MAX_ESTIMATED_COST_PER_BOARD_USD` low. Turn paid generation off again with `ENABLE_PAID_IMAGE_GENERATION=false`.
 
 The developer-only Real Provider Test Lab is hidden by default in production. It appears in development or when `SHOW_PROVIDER_TEST_LAB=true`. It calls only `POST /api/provider-test/generate-one`, which is hard-limited to exactly one image and requires explicit confirmation. The normal board generator should not be used for real 4/8/12/16 image tests yet.
+
+The first implemented real provider for the test lab is OpenAI via the installed official `openai` SDK. Gemini and fal remain guarded TODO adapters and return clear not-implemented errors. OpenAI still runs only when `SHOW_PROVIDER_TEST_LAB=true`, `ENABLE_PAID_IMAGE_GENERATION=true`, `MAX_REAL_TEST_IMAGES=1`, `OPENAI_API_KEY` exists, the estimate is within `MAX_ESTIMATED_COST_PER_BOARD_USD`, and the user explicitly confirms the one-image test.
+
+The test lab supports prompt versioning and manual quality review:
+
+- `v1-basic-look`: simple outfit inspiration baseline.
+- `v2-full-body-fashion`: default full-body framing and outfit visibility.
+- `v3-strong-resemblance-safe`: stronger resemblance guidance when a reference image is provided.
+
+When the optional `provider_test_runs` migration is applied, signed-in users get recent test history in the lab. Each run stores provider, model, status, selected reference look JSON, prompt version, prompt used, estimated cost, image count, output image path/URL when storage succeeds, error message, and metadata. Generated test images are saved to the private `generated-outfits` bucket under `{user_id}/provider-tests/{run_id}.*` when Storage is configured. If the migration or Storage bucket is missing, the lab still works and reports that history/storage was skipped.
+
+After a result appears, use the manual checklist to mark Pass or Needs work, note issues such as cropped body, weak resemblance, outfit mismatch, overly formal styling, or artifacts, and save that quality metadata back to the test run when available. The checklist only records feedback; it never regenerates automatically.
 ## Supabase Setup
 
 1. Create a Supabase project.
@@ -211,6 +223,7 @@ The developer-only Real Provider Test Lab is hidden by default in production. It
 3. Copy the service role key into `.env.local` for server/admin workflows.
 4. Run the SQL migration in `supabase/migrations/202605120001_styletrip_saved_boards.sql`.
 5. Run `supabase/migrations/202605150001_style_feedback.sql` to enable persistent feedback events.
+6. Run `supabase/migrations/202605150002_provider_test_runs.sql` to enable provider test run history and checklist persistence.
 
 You can run migrations with the Supabase CLI:
 
@@ -231,6 +244,7 @@ The migration creates:
 - `board_images`
 - `generations`
 - `style_feedback` stores optional selected/deselected/not-my-style/generated/saved/downloaded look feedback.
+- `provider_test_runs` stores optional developer-only one-image provider test history and quality checklist metadata.
 
 It also enables Row Level Security so users can only access their own profiles, photos, boards, board images, and generations.
 
@@ -266,6 +280,9 @@ If bucket creation is blocked in your Supabase environment, create them manually
 - `GET /api/style-feedback` loads Style Memory for the current user.
 - `POST /api/style-feedback` saves a feedback event opportunistically.
 - `DELETE /api/style-feedback` resets the current user's Style Memory.
+- `POST /api/provider-test/generate-one` runs the guarded developer-only one-image provider test.
+- `GET /api/provider-test/runs` loads recent provider test history when the optional migration exists.
+- `PATCH /api/provider-test/runs` saves manual quality checklist metadata for a test run.
 - `DELETE /api/boards/[id]`
 
 `generate-style-board` and `refine-board` remain available for compatibility, but the current UI uses `generate-outfit-images` plus the frontend board renderer.
