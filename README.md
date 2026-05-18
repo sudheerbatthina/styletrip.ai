@@ -248,7 +248,7 @@ Setup Health checks:
 
 - Supabase URL, anon key, and server-side service role key presence.
 - Auth session status for the current request.
-- Required private Storage buckets: `user-photos`, `generated-outfits`, and `generated-boards`.
+- Required private Storage buckets: `user-photos`, `generated-outfits`, `generated-boards`, and `reference-assets`.
 - Required tables: `profiles`, `user_photos`, `boards`, `board_images`, `generations`, `style_feedback`, and `provider_test_runs`.
 - Migration checklist inferred from table existence.
 - Reference provider status and key presence booleans.
@@ -263,6 +263,7 @@ The final summary, **Safe to test one real image**, should be `yes` only when th
 4. Run the SQL migration in `supabase/migrations/202605120001_styletrip_saved_boards.sql`.
 5. Run `supabase/migrations/202605150001_style_feedback.sql` to enable persistent feedback events.
 6. Run `supabase/migrations/202605150002_provider_test_runs.sql` to enable provider test run history and checklist persistence.
+7. Run `supabase/migrations/202605170003_reference_assets.sql` to enable the Reference Library.
 
 You can run migrations with the Supabase CLI:
 
@@ -311,6 +312,7 @@ If bucket creation is blocked in your Supabase environment, create them manually
 
 - `POST /api/analyze-photo`
 - `POST /api/generate-reference-looks`
+- `GET /api/reference-assets`, `POST /api/reference-assets`, `PATCH/DELETE /api/reference-assets/[id]`
 - `POST /api/generate-style-options` (legacy/provider compatibility)
 - `POST /api/generate-outfit-images`
 - `POST /api/generate-style-board`
@@ -373,3 +375,4 @@ Apply `supabase/migrations/202605170002_manual_extracted_looks.sql` to persist e
 Once an import has at least 4 persisted extracted looks, use **Create board from extracted looks** or open `/boards/new?source=manual-result&id=...`. The normal builder still asks for a photo and preferences, then the Pick Looks step displays the imported looks with a **From Prompt Lab import** badge. Mock board generation, save, download, dashboard, and detail behavior remain unchanged.
 
 Future TODO: add optional AI/OCR extraction that proposes structured looks from imported boards, then let the user review before saving.
+

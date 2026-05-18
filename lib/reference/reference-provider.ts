@@ -1,4 +1,5 @@
 import { scoreMockReferenceLooks } from "@/lib/matching/mock-match-scorer";
+import { findReferenceAssetLooks } from "@/lib/reference/reference-assets";
 import {
   getCuratedReferenceLooks,
   mockStyleCards,
@@ -91,10 +92,11 @@ export async function getReferenceLooksForPlan({
 
 async function getProviderReferenceLooks(input: ReferenceProviderInput) {
   const curatedLooks = await getCuratedReferenceLooks(input);
+  const assetLooks = await getReferenceAssetLooks(input);
   const provider = getReferenceProvider();
 
   if (provider === "curated") {
-    return curatedLooks;
+    return mergeWithCuratedFallback(assetLooks, curatedLooks, input.target);
   }
 
   try {
@@ -102,11 +104,66 @@ async function getProviderReferenceLooks(input: ReferenceProviderInput) {
       ? await getPexelsLooksIfEnabled(input)
       : await getUnsplashLooksIfEnabled(input);
 
-    return mergeWithCuratedFallback(externalLooks, curatedLooks, input.target);
+    return mergeWithCuratedFallback([...assetLooks, ...externalLooks], curatedLooks, input.target);
   } catch (error) {
-    console.warn(`Reference provider ${provider} failed; falling back to curated.`, error);
-    return curatedLooks;
+    console.warn(`Reference provider ${provider} failed; falling back to library and curated assets.`, error);
+    return mergeWithCuratedFallback(assetLooks, curatedLooks, input.target);
   }
+}
+
+async function getReferenceAssetLooks(input: ReferenceProviderInput) {
+  try {
+    return await findReferenceAssetLooks({
+      limit: input.target,
+      queryText: buildReferenceAssetQuery(input),
+    });
+  } catch (error) {
+    console.warn("Reference asset lookup failed; continuing with provider fallback.", error);
+    return [];
+  }
+}
+
+function buildReferenceAssetQuery(input: ReferenceProviderInput) {
+  const { preferences, analysis, styleIdeas = [] } = input;
+  const styleIdeaText = styleIdeas.flatMap((idea) => [
+    idea.title,
+    idea.occasion,
+    idea.vibe,
+    idea.fit,
+    idea.generationBrief,
+    ...idea.palette,
+    ...idea.keyItems,
+    ...idea.footwear,
+    ...idea.accessories,
+    ...idea.searchKeywords,
+  ]);
+
+  return [
+    preferences.tripLocation,
+    preferences.tripType,
+    preferences.preferredFit,
+    preferences.styleVibe,
+    preferences.weatherSeason,
+    preferences.genderStyleDirection,
+    ...preferences.occasionTypes,
+    ...splitInput(preferences.favoriteColors),
+    ...splitInput(preferences.colorsToAvoid),
+    ...splitInput(preferences.dislikedStyles),
+    ...analysis.recommendedColorPalette,
+    ...analysis.recommendedSilhouettes,
+    ...(analysis.dynamicPhotoAnalysis?.recommendedPalette ?? []),
+    ...(analysis.dynamicPhotoAnalysis?.styleDirections ?? []),
+    ...styleIdeaText,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function splitInput(value: string | undefined) {
+  return (value ?? "")
+    .split(/[\n,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 async function getPexelsLooksIfEnabled(input: ReferenceProviderInput) {
@@ -148,5 +205,9 @@ function mergeWithCuratedFallback(
   }
   return Array.from(merged.values()).slice(0, target);
 }
+
+
+
+
 
 

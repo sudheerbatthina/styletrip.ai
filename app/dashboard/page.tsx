@@ -6,6 +6,7 @@ import { AppNav } from "@/components/common/AppNav";
 import { ConfigWarning } from "@/components/common/ConfigWarning";
 import { ProviderStatusCard } from "@/components/dashboard/ProviderStatusCard";
 import { ProviderTestLabCard } from "@/components/dashboard/ProviderTestLabCard";
+import { ReferenceLibraryCard } from "@/components/dashboard/ReferenceLibraryCard";
 import { SetupHealthCard } from "@/components/dashboard/SetupHealthCard";
 import { StyleMemoryCard } from "@/components/dashboard/StyleMemoryCard";
 import { Badge } from "@/components/ui/badge";
@@ -186,5 +187,6 @@ export default async function DashboardPage() {
     </>
   );
 }
+
 
 

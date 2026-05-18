@@ -11,6 +11,7 @@ export function ReferenceLookGrid({
   showDebug,
   onToggle,
   onFeedback,
+  onSaveToLibrary,
 }: {
   looks: ReferenceLook[];
   selectedIds: string[];
@@ -19,6 +20,7 @@ export function ReferenceLookGrid({
   showDebug?: boolean;
   onToggle: (id: string) => void;
   onFeedback: (kind: keyof ReferenceFeedback, id: string) => void;
+  onSaveToLibrary?: (look: ReferenceLook) => void;
 }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
@@ -32,8 +34,10 @@ export function ReferenceLookGrid({
           showDebug={showDebug}
           onToggle={() => onToggle(look.id)}
           onFeedback={onFeedback}
+          onSaveToLibrary={onSaveToLibrary}
         />
       ))}
     </div>
   );
 }
+

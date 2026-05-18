@@ -2,6 +2,7 @@ import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
 import { AppNav } from "@/components/common/AppNav";
 import { ManualExtractionEditor } from "@/components/prompt-lab/ManualExtractionEditor";
+import { AddManualResultReferenceAsset } from "@/components/reference-library/AddManualResultReferenceAsset";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -80,6 +81,12 @@ export default async function ManualPromptResultPage({
               </CardContent>
             </Card>
 
+            <AddManualResultReferenceAsset
+              manualResultId={result.id}
+              boardId={result.boardId}
+              importedImageUrl={result.importedImageUrl}
+            />
+
             <Card>
               <CardContent className="space-y-3 p-4">
                 <p className="text-sm font-semibold">Quality checklist</p>
@@ -119,3 +126,4 @@ export default async function ManualPromptResultPage({
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
+

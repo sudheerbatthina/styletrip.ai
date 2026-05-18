@@ -278,6 +278,43 @@ function StyleTripApp({
     return referenceLooks.find((look) => look.id === id);
   }
 
+  async function saveLookToReferenceLibrary(look: ReferenceLook) {
+    try {
+      const result = await postJson<{ saved?: boolean; reason?: string | null }>("/api/reference-assets", {
+        title: look.title,
+        source: normalizeReferenceSource(look),
+        sourceName: look.sourceName || look.source,
+        sourceUrl: look.sourceUrl,
+        photographer: look.photographer || null,
+        photographerUrl: look.photographerUrl ?? null,
+        attributionText: look.attributionText || null,
+        imageUrl: look.referenceImageUrl,
+        occasionTags: [look.occasion].filter(Boolean),
+        styleTags: look.matchTags,
+        fitTags: [look.fit].filter(Boolean),
+        colorTags: splitTagText(look.colorMood),
+        itemTags: look.items,
+        metadata: {
+          source: "reference-look-card",
+          referenceLookId: look.id,
+          matchScore: look.overallMatchScore,
+          promptHint: look.promptHint,
+        },
+      });
+
+      toast({
+        title: result.saved ? "Saved to Reference Library" : "Reference Library setup needed",
+        description: result.saved
+          ? "This look can now be reused in future Pick Looks results."
+          : result.reason ?? "Run the reference_assets migration and create the reference-assets bucket.",
+      });
+    } catch (error) {
+      toast({
+        title: "Could not save reference",
+        description: error instanceof Error ? error.message : "Try again after setup is complete.",
+      });
+    }
+  }
   function persistFeedbackEvent(feedbackType: FeedbackType, look: ReferenceLook) {
     if (!persistEnabled) {
       return;
@@ -956,6 +993,7 @@ function StyleTripApp({
                 showDebug={mockMode || process.env.NODE_ENV === "development"}
                 onToggle={toggleLook}
                 onFeedback={toggleFeedback}
+                onSaveToLibrary={mockMode || process.env.NODE_ENV === "development" ? saveLookToReferenceLibrary : undefined}
               />
             </div>
           </div>
@@ -1640,5 +1678,23 @@ function HistoryGallery({ history }: { history: GeneratedHistoryItem[] }) {
 
 
 
+
+
+
+function splitTagText(value: string) {
+  return value
+    .split(/[\n,/]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+}
+
+function normalizeReferenceSource(look: ReferenceLook) {
+  const sourceName = (look.sourceName || look.source).toLowerCase();
+  if (sourceName.includes("pexels")) return "pexels";
+  if (sourceName.includes("unsplash")) return "unsplash";
+  if (sourceName.includes("prompt")) return "manual-chatgpt";
+  return look.source;
+}
 
 

@@ -170,7 +170,7 @@ export function ManualExtractionEditor({
       <CardContent className="space-y-5 p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-sm font-semibold">Extract looks from this board</p>
+            <p className="text-sm font-semibold">Create reference looks from this image</p>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
               Manually turn the imported board into reusable looks. AI extraction can come later.
             </p>
@@ -257,5 +257,6 @@ function draftToLocalLook(draft: Draft, manualResultId: string, boardId?: string
 function splitList(value: string) {
   return value.split(/[\n,]/).map((item) => item.trim()).filter(Boolean);
 }
+
 
 

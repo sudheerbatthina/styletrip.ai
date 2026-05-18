@@ -20,4 +20,6 @@ export const storageBuckets = {
   userPhotos: "user-photos",
   generatedBoards: "generated-boards",
   generatedOutfits: "generated-outfits",
+  referenceAssets: "reference-assets",
 } as const;
+

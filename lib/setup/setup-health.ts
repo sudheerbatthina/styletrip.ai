@@ -154,6 +154,13 @@ export async function getSetupHealth(): Promise<SetupHealthResponse> {
       missing: tableStatuses.provider_test_runs?.ok ? [] : ["provider_test_runs"],
       migrationFile: "supabase/migrations/202605150002_provider_test_runs.sql",
     }),
+    migrationItem({
+      id: "reference-assets",
+      label: "reference_assets migration applied",
+      ok: Boolean(tableStatuses.reference_assets?.ok),
+      missing: tableStatuses.reference_assets?.ok ? [] : ["reference_assets"],
+      migrationFile: "supabase/migrations/202605170003_reference_assets.sql",
+    }),
   ];
 
   const providers: SetupHealthItem[] = [
@@ -499,3 +506,4 @@ function isMissingRelationError(error: { code?: string; message?: string }) {
     /does not exist|could not find|schema cache/i.test(error.message ?? "")
   );
 }
+

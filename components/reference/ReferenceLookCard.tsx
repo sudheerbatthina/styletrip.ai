@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { Check, ThumbsDown } from "lucide-react";
+import { Check, Library, ThumbsDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -22,6 +22,7 @@ export function ReferenceLookCard({
   showDebug,
   onToggle,
   onFeedback,
+  onSaveToLibrary,
 }: {
   look: ReferenceLook;
   selected: boolean;
@@ -31,6 +32,7 @@ export function ReferenceLookCard({
   showDebug?: boolean;
   onToggle: () => void;
   onFeedback: (kind: keyof ReferenceFeedback, id: string) => void;
+  onSaveToLibrary?: (look: ReferenceLook) => void;
 }) {
   const disliked = feedback.notMyStyle.includes(look.id);
   const memoryScore = scoreLookWithStyleMemory(look, styleMemory);
@@ -125,6 +127,19 @@ export function ReferenceLookCard({
           <p className="mt-1 line-clamp-3">{whyThisWorks}</p>
         </details>
 
+        {showDebug && onSaveToLibrary && look.source !== "manual" && look.sourceName !== "My Library" ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={() => onSaveToLibrary(look)}
+          >
+            <Library className="h-4 w-4" />
+            Save to Reference Library
+          </Button>
+        ) : null}
+
         {showDebug ? (
           <details className="rounded-md border bg-background p-3 text-xs leading-5 text-muted-foreground">
             <summary className="cursor-pointer font-semibold text-foreground">
@@ -177,3 +192,4 @@ export function ReferenceLookCard({
     </Card>
   );
 }
+
