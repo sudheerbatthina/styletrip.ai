@@ -138,7 +138,7 @@ export function GeneratedBoard({
             </div>
 
             <div className="space-y-2">
-              <p className="text-sm font-semibold">Regenerate full board with</p>
+              <p className="text-sm font-semibold">Refine demo board with</p>
               <div className="flex flex-wrap gap-2">
                 {refinements.map((instruction) => (
                   <Button

@@ -21,7 +21,7 @@ export function CostEstimateCard({ estimate }: CostEstimateCardProps) {
             <p className="text-sm font-semibold">Estimated generation cost</p>
             <p className="mt-1 text-sm text-muted-foreground">
               {isMock
-                ? "Mock mode: $0. No paid APIs will be called."
+                ? "Mock/reference board: $0. No paid APIs will be called."
                 : isBlocked
                   ? estimate.reason
                   : "Cost confirmation will be required before generation."}
@@ -47,7 +47,7 @@ export function CostEstimateCard({ estimate }: CostEstimateCardProps) {
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
           <p>
             {isMock
-              ? "Mock mode uses local demo assets and keeps estimated cost at $0."
+              ? "Mock/reference mode uses selected reference photos or local demo assets and keeps estimated cost at $0."
               : isBlocked
                 ? "ENABLE_PAID_IMAGE_GENERATION must be true before real providers can run."
                 : estimate.reason}

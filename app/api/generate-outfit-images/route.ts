@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getImageProviderId, getProviderStatus } from "@/lib/ai/provider-router";
+import { getImageProviderId, getProviderStatus, isPaidImageGenerationEnabled } from "@/lib/ai/provider-router";
 import { estimateBoardGenerationCost } from "@/lib/cost/cost-estimator";
 import { buildMockOutfitImage } from "@/lib/mock-data";
 import {
@@ -9,6 +9,12 @@ import {
 
 export const runtime = "nodejs";
 
+function getMockBoardPanelImage(
+  style: { title: string; referenceImageUrl?: string },
+  index: number,
+) {
+  return style.referenceImageUrl || buildMockOutfitImage(style.title, index);
+}
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
 }
@@ -28,17 +34,17 @@ export async function POST(request: Request) {
       imageCount: selectedStyles.length,
     });
 
-    if (costEstimate.mode === "blocked") {
+    if (costEstimate.mode === "blocked" && isPaidImageGenerationEnabled()) {
       return jsonError(costEstimate.reason, 402);
     }
 
-    if (imageProvider === "mock") {
+    if (imageProvider === "mock" || !isPaidImageGenerationEnabled()) {
       return NextResponse.json(
         outfitImagesResponseSchema.parse({
           outfitImages: selectedStyles.map((style, index) => ({
             styleId: style.id,
-            image: buildMockOutfitImage(style.title, index),
-            promptUsed: "mock-reference-look-mode",
+            image: getMockBoardPanelImage(style, index),
+            promptUsed: "mock-reference-board-uses-selected-reference-photo",
           })),
         }),
       );

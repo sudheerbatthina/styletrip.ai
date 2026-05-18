@@ -1,5 +1,26 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import type { StyleCardData } from "@/lib/schemas";
 
+type CuratedPhotoAsset = {
+  file: string;
+  tags: string[];
+};
+
+const curatedPhotoAssets: CuratedPhotoAsset[] = [
+  { file: "denim-casual.webp", tags: ["denim", "casual", "white tee", "street"] },
+  { file: "minimal-street.webp", tags: ["minimal", "street", "neutral", "sneakers"] },
+  { file: "desert-resort.webp", tags: ["desert", "resort", "linen", "camp"] },
+  { file: "utility-vacation.webp", tags: ["utility", "travel", "airport", "walking"] },
+  { file: "racing-jersey.webp", tags: ["racing", "sport", "night", "streetwear"] },
+  { file: "retro-bowling.webp", tags: ["bowling", "retro", "dinner", "night"] },
+  { file: "crochet-knit.webp", tags: ["crochet", "knit", "texture", "resort"] },
+  { file: "linen-relaxed.webp", tags: ["linen", "relaxed", "summer", "resort"] },
+  { file: "neutral-monochrome.webp", tags: ["neutral", "monochrome", "minimal", "mocha"] },
+  { file: "bold-pattern.webp", tags: ["pattern", "print", "statement", "night"] },
+  { file: "varsity-casual.webp", tags: ["varsity", "casual", "street", "sneakers"] },
+  { file: "camp-collar-print.webp", tags: ["camp", "collar", "print", "resort"] },
+];
 type CuratedReferenceTheme = {
   key: string;
   background: string;
@@ -139,6 +160,23 @@ export function getCuratedReferenceImage(style: StyleCardData, index: number, fi
   return svgDataUrl(buildReferenceSvg(style, index, fit, theme));
 }
 
+function getCuratedPhotoAsset(style: StyleCardData, index: number) {
+  const root = join(process.cwd(), "public", "reference-looks");
+  const text = `${style.title} ${style.vibe} ${style.bestFor} ${style.items.join(" ")} ${style.colors.join(" ")} ${style.imagePromptHint}`.toLowerCase();
+  const ranked = curatedPhotoAssets
+    .map((asset, assetIndex) => ({
+      asset,
+      assetIndex,
+      score: asset.tags.reduce((sum, tag) => sum + (text.includes(tag) ? 1 : 0), 0),
+    }))
+    .sort((first, second) => second.score - first.score || first.assetIndex - second.assetIndex);
+  const preferred = ranked.find((item) => item.score > 0)?.asset ?? curatedPhotoAssets[index % curatedPhotoAssets.length];
+  if (!preferred) {
+    return null;
+  }
+  const absolutePath = join(root, preferred.file);
+  return existsSync(absolutePath) ? `/reference-looks/${preferred.file}` : null;
+}
 function getTheme(style: StyleCardData, index: number) {
   const text = `${style.title} ${style.vibe} ${style.imagePromptHint}`.toLowerCase();
   const selected =

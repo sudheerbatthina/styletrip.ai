@@ -45,7 +45,7 @@ The app now separates styling logic into prompt modules under `lib/prompts`:
 - `refinement.ts` updates existing style ideas from follow-up instructions without restarting from scratch.
 - `personalized-generation.ts` builds future image-generation instructions from selected style ideas/reference looks, while normal board generation stays mock-safe.
 
-Mock mode returns deterministic photo analysis, style ideas, reference looks, and board images. The flow supports travel and Vegas when selected, but the prompts are not hardcoded to travel-only styling.
+Mock mode returns deterministic photo analysis, style ideas, reference looks, and board images. The flow supports travel and Vegas when selected, but the prompts are not hardcoded to travel-only styling. Mock/reference board generation now uses selected reference look images first, then curated local photos if available, then SVG illustrations as a fallback.
 ## Feedback and Ranking
 
 The Pick Looks step keeps a lightweight feedback state in `preferences.referenceFeedback`. It tracks selected, deselected, not-my-style, generated, saved, downloaded, and refresh-count signals.
@@ -123,6 +123,10 @@ npm run typecheck
 npm run build
 ```
 
+
+## Curated Reference Photos
+
+Curated mode checks `public/reference-looks` before falling back to generated SVG illustrations. Add demo-safe local files such as `denim-casual.webp`, `minimal-street.webp`, `desert-resort.webp`, `utility-vacation.webp`, `linen-relaxed.webp`, or `camp-collar-print.webp` to make mock/reference discovery and final boards use photographic assets. Use only images you own, generated yourself, or have rights to use. Google Images scraping is not supported.
 ## Mock Mode
 
 Set:

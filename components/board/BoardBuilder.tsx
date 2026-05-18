@@ -140,6 +140,8 @@ function StyleTripApp({
   const [stylePlan, setStylePlan] = useState<InternalStylePlan | null>(null);
   const [styleIdeaPlan, setStyleIdeaPlan] = useState<StylePlan | null>(null);
   const [styleIdeas, setStyleIdeas] = useState<StyleIdea[]>([]);
+  const [selectedStyleIdeaIds, setSelectedStyleIdeaIds] = useState<string[]>([]);
+  const [rejectedStyleIdeaIds, setRejectedStyleIdeaIds] = useState<string[]>([]);
   const [refinementInstruction, setRefinementInstruction] = useState("");
   const [referenceLooks, setReferenceLooks] = useState<ReferenceLook[]>([]);
   const [visibleLookIds, setVisibleLookIds] = useState<string[]>([]);
@@ -184,9 +186,22 @@ function StyleTripApp({
         .filter((look): look is ReferenceLook => Boolean(look)),
     [referenceLooks, visibleLookIds],
   );
+  const displayedStyleIdeas = useMemo(
+    () =>
+      [...styleIdeas].sort((first, second) => {
+        const firstRank = getStyleIdeaRank(first.id, selectedStyleIdeaIds, rejectedStyleIdeaIds);
+        const secondRank = getStyleIdeaRank(second.id, selectedStyleIdeaIds, rejectedStyleIdeaIds);
+        return firstRank - secondRank;
+      }),
+    [rejectedStyleIdeaIds, selectedStyleIdeaIds, styleIdeas],
+  );
   const preferencesWithFeedback = useMemo(
     () => ({ ...preferences, referenceFeedback: feedback, styleMemory }),
     [feedback, preferences, styleMemory],
+  );
+  const generationEstimate = useMemo(
+    () => withSelectedImageCount(providerStatus?.costEstimate ?? fallbackCostEstimate, selectedLooks.length || styleTarget),
+    [providerStatus?.costEstimate, selectedLooks.length, styleTarget],
   );
 
   useEffect(() => {
@@ -338,6 +353,8 @@ function StyleTripApp({
       });
       setStyleIdeaPlan(result);
       setStyleIdeas(result.styleIdeas);
+      setSelectedStyleIdeaIds([]);
+      setRejectedStyleIdeaIds([]);
       setReferenceLooks([]);
       setVisibleLookIds([]);
       setSelectedIds([]);
@@ -369,6 +386,8 @@ function StyleTripApp({
       });
       setStyleIdeaPlan(result);
       setStyleIdeas(result.styleIdeas);
+      setSelectedStyleIdeaIds([]);
+      setRejectedStyleIdeaIds([]);
       setReferenceLooks([]);
       setVisibleLookIds([]);
       setSelectedIds([]);
@@ -384,6 +403,29 @@ function StyleTripApp({
     } finally {
       setLoadingLabel(null);
     }
+  }
+  function toggleStyleIdeaDirection(idea: StyleIdea) {
+    if (rejectedStyleIdeaIds.includes(idea.id)) {
+      setRejectedStyleIdeaIds((current) => current.filter((id) => id !== idea.id));
+    }
+
+    const alreadySelected = selectedStyleIdeaIds.includes(idea.id);
+    setSelectedStyleIdeaIds((current) =>
+      alreadySelected
+        ? current.filter((id) => id !== idea.id)
+        : [...current, idea.id],
+    );
+  }
+
+  function rejectStyleIdea(idea: StyleIdea) {
+    setSelectedStyleIdeaIds((current) => current.filter((id) => id !== idea.id));
+    setRejectedStyleIdeaIds((current) =>
+      current.includes(idea.id) ? current : [...current, idea.id],
+    );
+    toast({
+      title: "Direction downranked",
+      description: "It will move lower and will not be used for reference discovery unless you select it again.",
+    });
   }
   async function handleDiscoverLooks() {
     if (!analysis) {
@@ -426,11 +468,25 @@ function StyleTripApp({
       return;
     }
 
+    const availableStyleIdeas = styleIdeas.filter((idea) => !rejectedStyleIdeaIds.includes(idea.id));
+    const selectedStyleIdeas = selectedStyleIdeaIds
+      .map((id) => availableStyleIdeas.find((idea) => idea.id === id))
+      .filter((idea): idea is StyleIdea => Boolean(idea));
+    const styleIdeasForReferences = selectedStyleIdeas.length > 0
+      ? selectedStyleIdeas
+      : availableStyleIdeas.slice(0, 6);
+
+    if (selectedStyleIdeas.length === 0 && styleIdeasForReferences.length > 0) {
+      toast({
+        title: "Using top recommendations",
+        description: "Select directions to narrow reference discovery, or continue with the top ranked ideas.",
+      });
+    }
     setLoadingLabel("Finding reference looks");
     try {
       const result = await postJson<ReferenceLooksResponse>(
         "/api/generate-reference-looks",
-        { analysis, preferences: preferencesWithFeedback, styleIdeas },
+        { analysis, preferences: preferencesWithFeedback, styleIdeas: styleIdeasForReferences },
       );
       setStylePlan(result.stylePlan);
       setReferenceLooks(result.referenceLooks);
@@ -560,7 +616,7 @@ function StyleTripApp({
   }
 
   function getPreferencesWithProviderMetadata() {
-    const estimate = providerStatus?.costEstimate ?? fallbackCostEstimate;
+    const estimate = generationEstimate;
     return {
       ...preferencesWithFeedback,
       providerCostMetadata: {
@@ -588,7 +644,7 @@ function StyleTripApp({
       return;
     }
 
-    const estimate = providerStatus?.costEstimate ?? fallbackCostEstimate;
+    const estimate = generationEstimate;
     if (estimate.mode === "blocked") {
       toast({
         title: "Generation blocked",
@@ -778,8 +834,8 @@ function StyleTripApp({
           <div className="space-y-6">
             <StepHeader
               eyebrow="Step 3"
-              title="Style ideas"
-              description="Structured directions based on your photo, preferences, context, and Style Memory. Refine them before finding visual references."
+              title="Recommended style directions"
+              description="Based on your photo, preferences, and style memory. Select directions to narrow the visual references, or use the top recommendations by default."
             />
             <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
               <div className="space-y-4">
@@ -796,6 +852,10 @@ function StyleTripApp({
                 />
                 <Card>
                   <CardContent className="space-y-4 p-4">
+                    <div>
+                      <p className="text-sm font-semibold">Selected directions</p>
+                      <p className="text-sm text-muted-foreground">Selected directions: {selectedStyleIdeaIds.length}</p>
+                    </div>
                     <p className="text-sm font-semibold">Overall direction</p>
                     <p className="text-sm leading-6 text-muted-foreground">{styleIdeaPlan.overallDirection}</p>
                     {styleIdeaPlan.questionsOrUncertainty.length > 0 ? (
@@ -811,25 +871,11 @@ function StyleTripApp({
                 </Card>
               </div>
               <StyleIdeasGrid
-                ideas={styleIdeas}
-                onUseDirection={(idea) => {
-                  const orderedIdeas = [
-                    idea,
-                    ...styleIdeas.filter((currentIdea) => currentIdea.id !== idea.id),
-                  ];
-                  setStyleIdeas(orderedIdeas);
-                  setStyleIdeaPlan((currentPlan) => currentPlan
-                    ? { ...currentPlan, styleIdeas: orderedIdeas.slice(0, 6) }
-                    : currentPlan);
-                  toast({
-                    title: "Style direction prioritized",
-                    description: "Reference looks will start from that direction.",
-                  });
-                }}
-                onNotMyStyle={(idea) => {
-                  setRefinementInstruction(`avoid ${idea.title}; show a different direction`);
-                  void handleRefineStyleIdeas(`avoid ${idea.title}; show a different direction`);
-                }}
+                ideas={displayedStyleIdeas}
+                selectedIds={selectedStyleIdeaIds}
+                rejectedIds={rejectedStyleIdeaIds}
+                onToggleDirection={toggleStyleIdeaDirection}
+                onNotMyStyle={rejectStyleIdea}
               />
             </div>
           </div>
@@ -931,8 +977,11 @@ function StyleTripApp({
                     {selectedLooks.length} looks ready
                   </h2>
                   <CostEstimateCard
-                    estimate={providerStatus?.costEstimate ?? fallbackCostEstimate}
+                    estimate={generationEstimate}
                   />
+                  <p className="rounded-md border bg-muted/30 p-3 text-xs leading-5 text-muted-foreground">
+                    Mock/reference board mode uses your selected reference photos first. Paid personalized generation remains disabled for the normal board flow.
+                  </p>
                   <p className="text-sm leading-6 text-muted-foreground">
                     The board is generated as AI outfit inspiration, not an exact
                     try-on. It will avoid explicit clothing, sensitive assumptions,
@@ -944,7 +993,7 @@ function StyleTripApp({
                       disabled={
                         loading ||
                         selectedLooks.length < styleTarget ||
-                        providerStatus?.costEstimate.mode === "blocked"
+                        generationEstimate.mode === "blocked"
                       }
                       onClick={() => void handleGenerateBoard()}
                     >
@@ -1000,7 +1049,7 @@ function StyleTripApp({
         <GenerationConfirmDialog
           open={showGenerationConfirm}
           loading={loading}
-          estimate={providerStatus?.costEstimate ?? fallbackCostEstimate}
+          estimate={generationEstimate}
           onCancel={() => {
             setShowGenerationConfirm(false);
             setPendingGenerationInstruction(undefined);
@@ -1163,6 +1212,25 @@ function LoadingBar({ label }: { label: string }) {
   );
 }
 
+function withSelectedImageCount(estimate: CostEstimate, count: number): CostEstimate {
+  const numberOfImages = Math.max(0, count);
+  if (estimate.mode === "mock" || estimate.reason.toLowerCase().includes("paid generation disabled")) {
+    return {
+      ...estimate,
+      mode: "mock",
+      provider: "mock",
+      imageProvider: "mock",
+      textProvider: "mock",
+      numberOfImages,
+      estimatedTextCostUsd: 0,
+      estimatedImageCostUsd: 0,
+      estimatedTotalCostUsd: 0,
+      isAllowed: true,
+      reason: "$0 - using selected reference photos. Personalized paid generation is disabled for the normal board flow.",
+    };
+  }
+  return { ...estimate, numberOfImages };
+}
 function PhotoPreview({ image }: { image: ImageInput }) {
   return (
     <Card>
@@ -1192,50 +1260,62 @@ function AnalysisPanel({
   onContinue: () => void;
 }) {
   const profile = analysis.visibleStyleProfile;
+  const dynamic = analysis.dynamicPhotoAnalysis;
+  const summary = dynamic?.frameNotes ?? profile.bodyFrame;
 
   return (
     <Card>
-      <CardContent className="space-y-6 p-5">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <InfoBlock title="Frame notes" value={profile.bodyFrame} />
-          <InfoBlock title="Proportions" value={profile.proportionNotes} />
-          <InfoBlock title="Color styling" value={profile.skinToneStylingNotes} />
-          <InfoBlock title="Current outfit" value={profile.currentOutfitNotes} />
+      <CardContent className="space-y-5 p-5">
+        <div className="rounded-lg border bg-primary/5 p-4">
+          <p className="text-sm font-semibold text-primary">Quick profile summary</p>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">{summary}</p>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            {dynamic?.uncertaintyNotes ?? analysis.confidenceNotes}
+          </p>
         </div>
+
         <div className="grid gap-4 sm:grid-cols-2">
-          <AdviceList title="Fit advice" items={profile.fitAdvice} positive />
-          <AdviceList title="Avoid" items={profile.avoidAdvice} />
+          <InfoBlock title="Current outfit cue" value={dynamic?.currentOutfit ?? profile.currentOutfitNotes} />
+          <InfoBlock title="Fit direction" value={dynamic?.proportions ?? profile.proportionNotes} />
         </div>
-        <div className="space-y-3">
-          <p className="text-sm font-semibold">Recommended palette</p>
-          <div className="flex flex-wrap gap-2">
-            {analysis.recommendedColorPalette.map((color) => (
-              <Badge key={color}>{color}</Badge>
-            ))}
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-3 rounded-lg border bg-background p-4">
+            <p className="text-sm font-semibold">Recommended colors</p>
+            <div className="flex flex-wrap gap-2">
+              {analysis.recommendedColorPalette.slice(0, 8).map((color) => (
+                <Badge key={color}>{color}</Badge>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-3 rounded-lg border bg-background p-4">
+            <p className="text-sm font-semibold">Recommended fit/silhouettes</p>
+            <div className="space-y-2">
+              {analysis.recommendedSilhouettes.slice(0, 4).map((item) => (
+                <p key={item} className="text-sm leading-5 text-muted-foreground">{item}</p>
+              ))}
+            </div>
           </div>
         </div>
-        <div className="space-y-3">
-          <p className="text-sm font-semibold">Silhouettes</p>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {analysis.recommendedSilhouettes.map((item) => (
-              <div key={item} className="rounded-md border bg-muted/35 p-3 text-sm">
-                {item}
-              </div>
-            ))}
+
+        <details className="rounded-lg border bg-muted/25 p-4">
+          <summary className="cursor-pointer text-sm font-semibold">More styling details</summary>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <InfoBlock title="Color styling" value={dynamic?.colorStyling ?? profile.skinToneStylingNotes} />
+            <InfoBlock title="Avoid" value={(dynamic?.avoid ?? profile.avoidAdvice).join(" ")} />
+            <AdviceList title="Fit advice" items={dynamic?.fitAdvice ?? profile.fitAdvice} positive />
+            <AdviceList title="Avoid" items={dynamic?.avoid ?? profile.avoidAdvice} />
           </div>
-        </div>
-        <p className="rounded-lg border bg-muted/35 p-4 text-sm leading-6 text-muted-foreground">
-          {analysis.confidenceNotes}
-        </p>
+        </details>
+
         <Button onClick={onContinue} size="lg">
-          Create Style Ideas
+          Create recommended style directions
           <ArrowRight className="h-4 w-4" />
         </Button>
       </CardContent>
     </Card>
   );
 }
-
 function InfoBlock({ title, value }: { title: string; value: string }) {
   return (
     <div className="rounded-lg border bg-background p-4">
@@ -1339,78 +1419,114 @@ function RefinementPanel({
 
 function StyleIdeasGrid({
   ideas,
-  onUseDirection,
+  selectedIds,
+  rejectedIds,
+  onToggleDirection,
   onNotMyStyle,
 }: {
   ideas: StyleIdea[];
-  onUseDirection: (idea: StyleIdea) => void;
+  selectedIds: string[];
+  rejectedIds: string[];
+  onToggleDirection: (idea: StyleIdea) => void;
   onNotMyStyle: (idea: StyleIdea) => void;
 }) {
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {ideas.map((idea) => (
-        <Card key={idea.id} className="overflow-hidden">
-          <CardContent className="space-y-4 p-4">
-            <div className="flex flex-wrap gap-2">
-              <Badge>{idea.occasion}</Badge>
-              <Badge className="bg-background text-foreground">{idea.fit}</Badge>
-            </div>
-            <div>
-              <h3 className="text-lg font-bold">{idea.title}</h3>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">{idea.vibe}</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {idea.palette.slice(0, 5).map((color) => (
-                <Badge key={color} className="bg-background text-foreground">
-                  {color}
-                </Badge>
-              ))}
-            </div>
-            <p className="text-sm leading-6 text-muted-foreground">
-              {idea.keyItems.join(" / ")}
-            </p>
-            <p className="text-xs leading-5 text-muted-foreground">
-              Footwear: {idea.footwear.join(", ") || "flexible"}
-            </p>
-            <p className="text-xs leading-5 text-muted-foreground">
-              Accessories: {idea.accessories.join(", ") || "minimal"}
-            </p>
-            <div className="rounded-md border bg-muted/25 p-3">
-              <p className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
-                Why it works
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      {ideas.slice(0, 6).map((idea) => {
+        const selected = selectedIds.includes(idea.id);
+        const rejected = rejectedIds.includes(idea.id);
+        return (
+          <Card
+            key={idea.id}
+            className={cn(
+              "overflow-hidden transition",
+              selected && "border-2 border-primary bg-primary/5 ring-2 ring-primary/20",
+              rejected && !selected && "opacity-55",
+            )}
+          >
+            <CardContent className="space-y-3 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <h3 className="line-clamp-1 text-base font-bold">{idea.title}</h3>
+                  <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{idea.vibe}</p>
+                </div>
+                {selected ? (
+                  <Badge className="shrink-0 bg-primary text-primary-foreground">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Selected
+                  </Badge>
+                ) : rejected ? (
+                  <Badge className="shrink-0 bg-background text-foreground">Downranked</Badge>
+                ) : null}
+              </div>
+
+              <div className="flex flex-wrap gap-1.5">
+                <Badge>{idea.occasion}</Badge>
+                <Badge className="bg-background text-foreground">{idea.fit}</Badge>
+              </div>
+
+              <div className="flex flex-wrap gap-1.5">
+                {idea.palette.slice(0, 4).map((color) => (
+                  <Badge key={color} className="bg-background text-foreground">
+                    {color}
+                  </Badge>
+                ))}
+              </div>
+
+              <p className="line-clamp-1 text-sm text-muted-foreground">
+                {idea.keyItems.slice(0, 4).join(" / ")}
               </p>
-              <p className="mt-1 text-sm leading-6">{idea.whyItWorks}</p>
-            </div>
-            <details className="text-xs text-muted-foreground">
-              <summary className="cursor-pointer font-semibold text-foreground">
-                Search keywords
-              </summary>
-              <p className="mt-2 leading-5">{idea.searchKeywords.join(", ")}</p>
-            </details>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <Button
-                type="button"
-                className="w-full"
-                onClick={() => onUseDirection(idea)}
-              >
-                Use this direction
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={() => onNotMyStyle(idea)}
-              >
-                Not my style
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+              <p className="line-clamp-2 text-sm leading-5">
+                {idea.whyItWorks}
+              </p>
+
+              <details className="text-xs text-muted-foreground">
+                <summary className="cursor-pointer font-semibold text-foreground">
+                  Search keywords
+                </summary>
+                <p className="mt-2 leading-5">{idea.searchKeywords.join(", ")}</p>
+              </details>
+
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Button
+                  type="button"
+                  className="w-full"
+                  variant={selected ? "default" : "secondary"}
+                  onClick={() => onToggleDirection(idea)}
+                  aria-pressed={selected}
+                >
+                  {selected ? "Selected direction" : "Select direction"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => onNotMyStyle(idea)}
+                >
+                  Not my style
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 }
-function StylePlanDetails({
+
+function getStyleIdeaRank(
+  id: string,
+  selectedIds: string[],
+  rejectedIds: string[],
+) {
+  if (selectedIds.includes(id)) {
+    return 0;
+  }
+  if (rejectedIds.includes(id)) {
+    return 2;
+  }
+  return 1;
+}function StylePlanDetails({
   stylePlan,
   analysis,
   preferences,

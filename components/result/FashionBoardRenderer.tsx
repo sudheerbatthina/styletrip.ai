@@ -66,13 +66,14 @@ export const FashionBoardRenderer = forwardRef<
                 count > 8 ? "text-xl" : "text-2xl sm:text-3xl",
               )}
             >
-              {preferences.tripLocation} {preferences.tripType} lookbook
+              {getBoardTitle(preferences)}
             </h1>
           </div>
           <div className={cn("shrink-0 text-right leading-5 text-[#52616b]", count > 8 ? "text-xs" : "text-sm")}>
             <p>{count} visual looks</p>
             <p>{aspectRatio} board</p>
             <p>{formatResemblance(preferences.resemblanceMode)}</p>
+            <p>Demo/reference board</p>
           </div>
         </header>
 
@@ -158,6 +159,13 @@ export const FashionBoardRenderer = forwardRef<
   );
 });
 
+function getBoardTitle(preferences: Preferences) {
+  const useCase = preferences.occasionUseCase || preferences.tripType || "style";
+  const location = preferences.tripLocation && preferences.tripLocation.toLowerCase() !== "none"
+    ? `${preferences.tripLocation} `
+    : "";
+  return `${location}${useCase} lookbook`;
+}
 function isReferenceLook(style: SelectableStyle): style is ReferenceLook {
   return "referenceImageUrl" in style;
 }

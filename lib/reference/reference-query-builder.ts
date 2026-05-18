@@ -67,14 +67,14 @@ export function buildReferenceQueries(input: ReferenceQueryInput) {
   return Array.from(
     new Set([
       base,
-      `${genderDirection} ${occasionText} outfit ${fit} pants`,
-      `${genderDirection} ${location} ${useCase} outfit ${fit} fit`,
-      `${genderDirection} ${location} outfit ${colors}`,
-      `${genderDirection} summer travel outfit neutral colors`,
-      `${genderDirection} airport outfit comfortable streetwear`,
+      `${genderDirection} ${occasionText} outfit ${fit} pants full body`,
+      `${genderDirection} ${location} ${useCase} outfit ${fit} fit full body`,
+      `${genderDirection} ${location} outfit ${colors} full body lookbook`,
+      `${genderDirection} summer outfit neutral colors full body`,
+      `${genderDirection} airport outfit comfortable streetwear full body`,
       `${genderDirection} outfit ${silhouetteCue} ${profileCue}`.trim(),
-      `${genderDirection} casual outfit ${items} ${getFootwearCue(style)}`,
-      `${genderDirection} ${vibe} outfit ${colors}`,
+      `${genderDirection} casual outfit ${items} ${getFootwearCue(style)} street style`,
+      `${genderDirection} ${vibe} outfit ${colors} lookbook`,
     ].map((query) => normalizeWords(query)).filter(Boolean)),
   );
 }

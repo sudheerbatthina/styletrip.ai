@@ -81,20 +81,30 @@ export async function getCuratedReferenceLooks({
   const ideaLooks = styleIdeas.slice(0, target).map((idea, index) =>
     createReferenceLookFromIdea({ idea, index, preferences }),
   );
-  const fallbackLooks = mockStyleCards.slice(0, target).map((style, index) =>
-    createBaseReferenceLook({
+  const fallbackLooks = mockStyleCards.slice(0, target).map((style, index) => {
+    const image = getCuratedImageMeta(style, index, preferences.preferredFit);
+    return createBaseReferenceLook({
       style,
       index: index + ideaLooks.length,
       preferences,
-      imageUrl: getCuratedReferenceImage(style, index, preferences.preferredFit),
+      imageUrl: image.url,
       source: "curated",
-      sourceName: "StyleTrip curated demo",
-      attributionText: "Local curated demo asset",
-    }),
-  );
+      sourceName: image.sourceName,
+      attributionText: image.attributionText,
+    });
+  });
   return [...ideaLooks, ...fallbackLooks].slice(0, target);
 }
 
+function getCuratedImageMeta(style: StyleCardData, index: number, fit: string) {
+  const url = getCuratedReferenceImage(style, index, fit);
+  const isPhoto = url.startsWith("/reference-looks/");
+  return {
+    url,
+    sourceName: isPhoto ? "Curated photo" : "StyleTrip illustration",
+    attributionText: isPhoto ? "Local curated photo asset" : "Local curated illustration",
+  };
+}
 function createReferenceLookFromIdea({
   idea,
   index,
@@ -105,6 +115,7 @@ function createReferenceLookFromIdea({
   preferences: Preferences;
 }): ReferenceLook {
   const style = mockStyleCards[index % mockStyleCards.length];
+  const image = getCuratedImageMeta(style, index, preferences.preferredFit);
   return {
     id: `idea-look-${index + 1}-${idea.id}`,
     title: idea.title,
@@ -113,13 +124,13 @@ function createReferenceLookFromIdea({
     colorMood: idea.palette.slice(0, 3).join(" / ") || getColorMood(style),
     items: idea.keyItems.slice(0, 4),
     whyItFits: idea.whyItWorks,
-    referenceImageUrl: getCuratedReferenceImage(style, index, preferences.preferredFit),
+    referenceImageUrl: image.url,
     source: "curated",
     sourceUrl: null,
-    sourceName: "StyleTrip curated demo",
+    sourceName: image.sourceName,
     photographer: "",
     photographerUrl: null,
-    attributionText: "Local curated demo asset",
+    attributionText: image.attributionText,
     promptHint: idea.generationBrief,
     selected: false,
     overallMatchScore: 0,
