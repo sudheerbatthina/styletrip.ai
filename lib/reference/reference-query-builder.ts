@@ -1,9 +1,11 @@
-import type { Preferences, StyleAnalysis, StyleCardData } from "@/lib/schemas";
+import type { Preferences, StyleAnalysis, StyleCardData, StyleIdea } from "@/lib/schemas";
+
+type ReferenceQueryStyle = StyleCardData | StyleIdea;
 
 export type ReferenceQueryInput = {
   analysis: StyleAnalysis;
   preferences: Preferences;
-  style: StyleCardData;
+  style: ReferenceQueryStyle;
   occasion: string;
 };
 
@@ -15,14 +17,14 @@ export function buildReferenceQuery({
 }: ReferenceQueryInput) {
   const genderDirection = getSimpleStyleDirection(preferences.genderStyleDirection);
   const location = getLocationCue(preferences.tripLocation);
-  const fit = normalizeWords(preferences.preferredFit || "relaxed");
-  const tripType = normalizeWords(preferences.tripType || "vacation");
+  const fit = normalizeWords(getStyleFit(style, preferences));
+  const useCase = normalizeWords(preferences.occasionUseCase || preferences.tripType || "style");
   const palette = [
     ...splitWords(preferences.favoriteColors),
     ...analysis.recommendedColorPalette,
-    ...style.colors,
-  ].map(normalizeWords).filter(Boolean).slice(0, 3);
-  const items = getPracticalItems(style.items, preferences.dislikedStyles);
+    ...getStyleColors(style),
+  ].map(normalizeWords).filter(Boolean).slice(0, 4);
+  const items = getPracticalItems(getStyleItems(style), preferences.dislikedStyles);
   const silhouetteCue = getSilhouetteCue(analysis.recommendedSilhouettes);
   const profileCue = getProfileCue(analysis.visibleStyleProfile.currentOutfitNotes);
   const occasionText = normalizeWords(occasion);
@@ -31,7 +33,7 @@ export function buildReferenceQuery({
     new Set([
       genderDirection,
       location,
-      tripType,
+      useCase,
       occasionText,
       "outfit",
       fit,
@@ -51,13 +53,14 @@ export function buildReferenceQueries(input: ReferenceQueryInput) {
   const colors = [
     ...splitWords(preferences.favoriteColors),
     ...input.analysis.recommendedColorPalette,
-    ...style.colors,
+    ...getStyleColors(style),
   ].map(normalizeWords).filter(Boolean).slice(0, 3).join(" ");
-  const items = getPracticalItems(style.items, preferences.dislikedStyles);
+  const items = getPracticalItems(getStyleItems(style), preferences.dislikedStyles);
   const location = getLocationCue(preferences.tripLocation);
-  const fit = normalizeWords(preferences.preferredFit || "relaxed");
+  const fit = normalizeWords(getStyleFit(style, preferences));
   const occasionText = normalizeWords(occasion);
-  const tripType = normalizeWords(preferences.tripType || "vacation");
+  const useCase = normalizeWords(preferences.occasionUseCase || preferences.tripType || "style");
+  const vibe = normalizeWords(style.vibe || style.title);
   const silhouetteCue = getSilhouetteCue(input.analysis.recommendedSilhouettes);
   const profileCue = getProfileCue(input.analysis.visibleStyleProfile.currentOutfitNotes);
 
@@ -65,14 +68,27 @@ export function buildReferenceQueries(input: ReferenceQueryInput) {
     new Set([
       base,
       `${genderDirection} ${occasionText} outfit ${fit} pants`,
-      `${genderDirection} ${location} ${tripType} outfit ${fit} fit`,
-      `${genderDirection} ${location} vacation outfit ${colors}`,
+      `${genderDirection} ${location} ${useCase} outfit ${fit} fit`,
+      `${genderDirection} ${location} outfit ${colors}`,
       `${genderDirection} summer travel outfit neutral colors`,
       `${genderDirection} airport outfit comfortable streetwear`,
       `${genderDirection} outfit ${silhouetteCue} ${profileCue}`.trim(),
       `${genderDirection} casual outfit ${items} ${getFootwearCue(style)}`,
-    ]),
+      `${genderDirection} ${vibe} outfit ${colors}`,
+    ].map((query) => normalizeWords(query)).filter(Boolean)),
   );
+}
+
+function getStyleColors(style: ReferenceQueryStyle) {
+  return "colors" in style ? style.colors : style.palette;
+}
+
+function getStyleItems(style: ReferenceQueryStyle) {
+  return "items" in style ? style.items : style.keyItems;
+}
+
+function getStyleFit(style: ReferenceQueryStyle, preferences: Preferences) {
+  return "fit" in style ? style.fit : preferences.preferredFit || "relaxed";
 }
 
 function splitWords(value: string) {
@@ -102,8 +118,8 @@ function getSimpleStyleDirection(value: string) {
 
 function getLocationCue(value: string) {
   const normalized = normalizeWords(value);
-  if (!normalized) {
-    return "travel";
+  if (!normalized || normalized === "none") {
+    return "style";
   }
   if (normalized.includes("las vegas") || normalized.includes("vegas")) {
     return "vegas";
@@ -125,8 +141,11 @@ function getPracticalItems(items: string[], dislikedStyles?: string) {
     .join(" ");
 }
 
-function getFootwearCue(style: StyleCardData) {
-  const text = [...style.footwear, ...style.items].join(" ").toLowerCase();
+function getFootwearCue(style: ReferenceQueryStyle) {
+  const text = [
+    ...("footwear" in style ? style.footwear : []),
+    ...getStyleItems(style),
+  ].join(" ").toLowerCase();
   if (text.includes("sneaker")) {
     return "sneakers";
   }

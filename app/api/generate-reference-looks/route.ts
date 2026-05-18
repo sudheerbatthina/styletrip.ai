@@ -45,6 +45,7 @@ export async function POST(request: Request) {
     const result = await getReferenceLooksForPlan({
       ...parsed.data,
       preferences,
+      styleIdeas: parsed.data.styleIdeas,
     });
     return NextResponse.json(referenceLooksResponseSchema.parse(result));
   } catch (error) {
@@ -55,3 +56,4 @@ export async function POST(request: Request) {
     );
   }
 }
+

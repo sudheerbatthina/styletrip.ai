@@ -165,7 +165,7 @@ Never use the normal 4/8/12/16 board generator for paid testing. That flow must 
 
 ## Prompt Lab Dry Run
 
-Prompt Lab is separate from real provider testing. It never calls paid APIs.
+Prompt Lab is separate from real provider testing. It never calls paid APIs. It now builds copyable prompts from the dynamic photo-analysis, style-ideas, selected-reference-look, refinement, and output-type context.
 
 Safe manual test flow:
 

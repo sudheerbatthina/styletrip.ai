@@ -11,6 +11,7 @@ import type {
   Preferences,
   ReferenceLook,
   StyleAnalysis,
+  StyleIdea,
 } from "@/lib/schemas";
 
 const defaultOccasions = ["airport", "daytime walking", "dinner", "casual night"];
@@ -39,6 +40,7 @@ function getReferenceTarget(preferences: Preferences) {
 export function getMockStylePlan(
   analysis: StyleAnalysis,
   preferences: Preferences,
+  styleIdeas: StyleIdea[] = [],
 ): InternalStylePlan {
   const occasionFocus = preferences.occasionTypes.length > 0
     ? preferences.occasionTypes
@@ -47,14 +49,14 @@ export function getMockStylePlan(
   return {
     stylePlanId: `mock-plan-${occasionFocus.join("-").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`,
     occasionFocus,
-    recommendedDirections: mockStyleCards.slice(0, 8).map((style, index) => ({
+    recommendedDirections: (styleIdeas.length ? styleIdeas : mockStyleCards.slice(0, 8)).map((style, index) => ({
       id: `direction-${index + 1}`,
       title: style.title,
-      reason: style.whyItFitsUser,
-      colors: style.colors,
+      reason: "whyItFitsUser" in style ? style.whyItFitsUser : style.whyItWorks,
+      colors: "colors" in style ? style.colors : style.palette,
       silhouettes: analysis.recommendedSilhouettes.slice(0, 2),
-      avoid: [style.avoidIf, ...analysis.visibleStyleProfile.avoidAdvice.slice(0, 1)],
-      occasion: preferences.occasionTypes[index % Math.max(preferences.occasionTypes.length, 1)] ?? defaultOccasions[index % defaultOccasions.length],
+      avoid: ["avoidIf" in style ? style.avoidIf : style.avoidNotes.join("; "), ...analysis.visibleStyleProfile.avoidAdvice.slice(0, 1)],
+      occasion: "occasion" in style ? style.occasion : preferences.occasionTypes[index % Math.max(preferences.occasionTypes.length, 1)] ?? defaultOccasions[index % defaultOccasions.length],
     })),
     overallGuidance:
       "Use relaxed trip outfits with clear proportions, practical layers, and colors that connect back to the uploaded styling reference. Reference looks are inspiration, not exact try-on.",
@@ -64,9 +66,10 @@ export function getMockStylePlan(
 export async function getMockReferenceLooks(
   analysis: StyleAnalysis,
   preferences: Preferences,
+  styleIdeas: StyleIdea[] = [],
 ): Promise<ReferenceLook[]> {
   const target = getReferenceTarget(preferences);
-  const input: ReferenceProviderInput = { analysis, preferences, target };
+  const input: ReferenceProviderInput = { analysis, preferences, target, styleIdeas };
   const looks = await getProviderReferenceLooks(input);
   return scoreMockReferenceLooks({ looks, analysis, preferences });
 }
@@ -74,13 +77,15 @@ export async function getMockReferenceLooks(
 export async function getReferenceLooksForPlan({
   analysis,
   preferences,
+  styleIdeas = [],
 }: {
   analysis: StyleAnalysis;
   preferences: Preferences;
+  styleIdeas?: StyleIdea[];
 }) {
   return {
-    stylePlan: getMockStylePlan(analysis, preferences),
-    referenceLooks: await getMockReferenceLooks(analysis, preferences),
+    stylePlan: getMockStylePlan(analysis, preferences, styleIdeas),
+    referenceLooks: await getMockReferenceLooks(analysis, preferences, styleIdeas),
   };
 }
 
@@ -143,3 +148,5 @@ function mergeWithCuratedFallback(
   }
   return Array.from(merged.values()).slice(0, target);
 }
+
+

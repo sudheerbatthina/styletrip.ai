@@ -34,7 +34,7 @@ export function buildProviderTestImagePrompt(input: OneImageProviderInput) {
       "Create exactly one realistic fashion inspiration image.",
       referenceMode,
       "Use the selected reference look as styling inspiration.",
-      "Show the outfit clearly in a clean travel styling context.",
+      "Show the outfit clearly in the requested styling context.",
     ],
     "v2-full-body-fashion": [
       "Create exactly one realistic full-body fashion inspiration image.",
@@ -62,7 +62,7 @@ export function buildProviderTestImagePrompt(input: OneImageProviderInput) {
     "Do not sexualize the subject.",
     "Do not create explicit content, underwear-only outfits, nudity, or medical/body judgments.",
     "Do not use real brand logos, copyrighted logos, or trademarked marks.",
-    "Use tasteful travel styling, natural lighting, and a clean editorial fashion-board look.",
+    "Use tasteful styling, natural lighting, and a clean editorial fashion-board look.",
   ].filter(Boolean).join("\n");
 }
 

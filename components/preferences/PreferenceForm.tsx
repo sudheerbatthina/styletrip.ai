@@ -13,30 +13,40 @@ import { cn } from "@/lib/utils";
 import { preferencesSchema, type Preferences } from "@/lib/schemas";
 
 const occasions = [
-  "airport",
+  "everyday",
+  "date night",
+  "work casual",
+  "event",
+  "travel day",
   "daytime walking",
-  "pool",
   "dinner",
-  "club",
+  "night out",
   "photoshoot",
-  "casual night",
+  "vacation",
+  "pool",
   "luxury casual",
 ];
 
 export const defaultPreferences: Preferences = {
   height: "",
+  occasionUseCase: "travel / vacation",
   tripLocation: "Las Vegas",
   tripType: "vacation",
-  genderStyleDirection: "men's vacation style",
+  weatherSeason: "warm / indoor-outdoor",
+  styleVibe: "relaxed polished casual",
+  genderStyleDirection: "men's adaptable style",
   budgetRange: "mid-range",
   preferredFit: "relaxed",
   dislikedStyles: "",
   favoriteColors: "",
-  occasionTypes: ["airport", "daytime walking", "dinner", "casual night"],
+  colorsToAvoid: "",
+  comfortModestyNotes: "",
+  occasionTypes: ["travel day", "daytime walking", "dinner", "night out"],
   aspectRatio: "1:1",
-  numberOfStyleIdeas: 12,
+  numberOfStyleIdeas: 6,
   usePhotoReferenceConsent: false,
   resemblanceMode: "strong",
+  outputTypePreference: "reference ideas",
   referenceFeedback: {
     selected: [],
     deselected: [],
@@ -85,20 +95,26 @@ export function PreferenceForm({
   return (
     <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Height" error={errors.height?.message}>
+        <Field label="What are you dressing for?" error={errors.occasionUseCase?.message}>
+          <Input placeholder="vacation, date night, event, everyday refresh" {...register("occasionUseCase")} />
+        </Field>
+        <Field label="Where are you going?" error={errors.tripLocation?.message}>
+          <Input placeholder="Las Vegas, NYC, beach trip, home city" {...register("tripLocation")} />
+        </Field>
+        <Field label="Trip/context type" error={errors.tripType?.message}>
+          <Input placeholder="vacation, casual, work trip, party weekend" {...register("tripType")} />
+        </Field>
+        <Field label="Weather / season" error={errors.weatherSeason?.message}>
+          <Input placeholder="summer, cold weather, rainy, indoor/outdoor" {...register("weatherSeason")} />
+        </Field>
+        <Field label="What style direction do you want?" error={errors.styleVibe?.message}>
+          <Input placeholder="minimal, streetwear, luxury casual, colorful" {...register("styleVibe")} />
+        </Field>
+        <Field label="General style lane" error={errors.genderStyleDirection?.message}>
+          <Input placeholder="men's style, womenswear, unisex, androgynous" {...register("genderStyleDirection")} />
+        </Field>
+        <Field label="Optional height" error={errors.height?.message}>
           <Input placeholder="5'7&quot; or 170 cm" {...register("height")} />
-        </Field>
-        <Field label="Trip location" error={errors.tripLocation?.message}>
-          <Input {...register("tripLocation")} />
-        </Field>
-        <Field label="Trip type" error={errors.tripType?.message}>
-          <Input {...register("tripType")} />
-        </Field>
-        <Field
-          label="Gender/style direction"
-          error={errors.genderStyleDirection?.message}
-        >
-          <Input {...register("genderStyleDirection")} />
         </Field>
         <Field label="Budget range" error={errors.budgetRange?.message}>
           <Input placeholder="budget, mid-range, luxury" {...register("budgetRange")} />
@@ -111,34 +127,39 @@ export function PreferenceForm({
             <option value="oversized">Oversized</option>
           </Select>
         </Field>
-        <Field label="Aspect ratio" error={errors.aspectRatio?.message}>
+        <Field label="Board aspect ratio" error={errors.aspectRatio?.message}>
           <Select {...register("aspectRatio")}>
             <option value="1:1">1:1 square</option>
             <option value="4:5">4:5 portrait</option>
             <option value="16:9">16:9 wide</option>
           </Select>
         </Field>
-        <Field label="Resemblance mode" error={errors.resemblanceMode?.message}>
+        <Field label="How close should generated looks resemble your photo?" error={errors.resemblanceMode?.message}>
           <Select {...register("resemblanceMode")}>
             <option value="strong">Strong resemblance</option>
             <option value="balanced">Balanced inspiration</option>
             <option value="loose">Loose reference</option>
           </Select>
         </Field>
-        <Field
-          label="Number of style ideas"
-          error={errors.numberOfStyleIdeas?.message}
-        >
+        <Field label="Number of looks" error={errors.numberOfStyleIdeas?.message}>
           <Select {...register("numberOfStyleIdeas", { valueAsNumber: true })}>
             <option value={4}>4</option>
+            <option value={6}>6</option>
             <option value={8}>8</option>
             <option value={12}>12</option>
             <option value={16}>16</option>
           </Select>
         </Field>
+        <Field label="Output type preference" error={errors.outputTypePreference?.message}>
+          <Select {...register("outputTypePreference")}>
+            <option value="reference ideas">Reference ideas</option>
+            <option value="personalized looks">Personalized looks</option>
+            <option value="final board">Final board</option>
+          </Select>
+        </Field>
       </div>
 
-      <Field label="Occasion types" error={errors.occasionTypes?.message}>
+      <Field label="What are the key occasions?" error={errors.occasionTypes?.message}>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {occasions.map((occasion) => {
             const active = selectedOccasions.includes(occasion);
@@ -163,11 +184,17 @@ export function PreferenceForm({
       </Field>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Disliked styles" error={errors.dislikedStyles?.message}>
+        <Field label="Any styles you dislike?" error={errors.dislikedStyles?.message}>
           <Textarea placeholder="skinny jeans, loud logos, formal suits" {...register("dislikedStyles")} />
         </Field>
-        <Field label="Favorite colors" error={errors.favoriteColors?.message}>
+        <Field label="Colors you love" error={errors.favoriteColors?.message}>
           <Textarea placeholder="cream, olive, rust, indigo" {...register("favoriteColors")} />
+        </Field>
+        <Field label="Colors to avoid" error={errors.colorsToAvoid?.message}>
+          <Textarea placeholder="neon, all black, pastels" {...register("colorsToAvoid")} />
+        </Field>
+        <Field label="Comfort or modesty notes" error={errors.comfortModestyNotes?.message}>
+          <Textarea placeholder="breathable fabrics, no shorts, comfortable shoes" {...register("comfortModestyNotes")} />
         </Field>
       </div>
 
@@ -208,5 +235,3 @@ function Field({
     </div>
   );
 }
-
-

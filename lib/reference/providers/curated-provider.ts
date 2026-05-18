@@ -1,6 +1,6 @@
 import { mockStyleCards } from "@/lib/mock-data";
 import { getCuratedReferenceImage } from "@/lib/reference/curated-reference-library";
-import type { Preferences, ReferenceLook, StyleAnalysis, StyleCardData } from "@/lib/schemas";
+import type { Preferences, ReferenceLook, StyleAnalysis, StyleCardData, StyleIdea } from "@/lib/schemas";
 
 const defaultOccasions = ["airport", "daytime walking", "dinner", "casual night"];
 
@@ -8,6 +8,7 @@ export type ReferenceProviderInput = {
   analysis: StyleAnalysis;
   preferences: Preferences;
   target: number;
+  styleIdeas?: StyleIdea[];
 };
 
 export function getOccasion(style: StyleCardData, preferences: Preferences, index: number) {
@@ -75,11 +76,15 @@ export function createBaseReferenceLook({
 export async function getCuratedReferenceLooks({
   preferences,
   target,
+  styleIdeas = [],
 }: ReferenceProviderInput): Promise<ReferenceLook[]> {
-  return mockStyleCards.slice(0, target).map((style, index) =>
+  const ideaLooks = styleIdeas.slice(0, target).map((idea, index) =>
+    createReferenceLookFromIdea({ idea, index, preferences }),
+  );
+  const fallbackLooks = mockStyleCards.slice(0, target).map((style, index) =>
     createBaseReferenceLook({
       style,
-      index,
+      index: index + ideaLooks.length,
       preferences,
       imageUrl: getCuratedReferenceImage(style, index, preferences.preferredFit),
       source: "curated",
@@ -87,6 +92,44 @@ export async function getCuratedReferenceLooks({
       attributionText: "Local curated demo asset",
     }),
   );
+  return [...ideaLooks, ...fallbackLooks].slice(0, target);
+}
+
+function createReferenceLookFromIdea({
+  idea,
+  index,
+  preferences,
+}: {
+  idea: StyleIdea;
+  index: number;
+  preferences: Preferences;
+}): ReferenceLook {
+  const style = mockStyleCards[index % mockStyleCards.length];
+  return {
+    id: `idea-look-${index + 1}-${idea.id}`,
+    title: idea.title,
+    occasion: idea.occasion,
+    fit: idea.fit || preferences.preferredFit,
+    colorMood: idea.palette.slice(0, 3).join(" / ") || getColorMood(style),
+    items: idea.keyItems.slice(0, 4),
+    whyItFits: idea.whyItWorks,
+    referenceImageUrl: getCuratedReferenceImage(style, index, preferences.preferredFit),
+    source: "curated",
+    sourceUrl: null,
+    sourceName: "StyleTrip curated demo",
+    photographer: "",
+    photographerUrl: null,
+    attributionText: "Local curated demo asset",
+    promptHint: idea.generationBrief,
+    selected: false,
+    overallMatchScore: 0,
+    bodyFitScore: 0,
+    colorScore: 0,
+    occasionScore: 0,
+    preferenceScore: 0,
+    whyThisMatches: [idea.whyItWorks],
+    matchTags: [idea.vibe, idea.fit].filter(Boolean).slice(0, 2),
+  };
 }
 
 export { mockStyleCards };

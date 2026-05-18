@@ -7,6 +7,11 @@ export const resemblanceModeSchema = z.enum([
   "balanced",
   "loose",
 ]);
+export const outputTypePreferenceSchema = z.enum([
+  "reference ideas",
+  "personalized looks",
+  "final board",
+]);
 
 export const feedbackTypeSchema = z.enum([
   "selected",
@@ -64,20 +69,26 @@ export const imageInputSchema = z.object({
 
 export const preferencesSchema = z.object({
   height: z.string().optional().default(""),
+  occasionUseCase: z.string().optional().default("travel / vacation"),
   tripLocation: z.string().min(1).default("Las Vegas"),
   tripType: z.string().min(1).default("vacation"),
-  genderStyleDirection: z.string().optional().default("men's vacation style"),
+  weatherSeason: z.string().optional().default(""),
+  styleVibe: z.string().optional().default("relaxed polished casual"),
+  genderStyleDirection: z.string().optional().default("men's adaptable style"),
   budgetRange: z.string().optional().default("mid-range"),
   preferredFit: z
     .enum(["slim", "regular", "relaxed", "oversized"])
     .default("relaxed"),
   dislikedStyles: z.string().optional().default(""),
   favoriteColors: z.string().optional().default(""),
+  colorsToAvoid: z.string().optional().default(""),
+  comfortModestyNotes: z.string().optional().default(""),
   occasionTypes: z.array(z.string()).default(["daytime walking", "dinner"]),
   aspectRatio: aspectRatioSchema.default("1:1"),
   numberOfStyleIdeas: z.coerce.number().int().min(4).max(16).default(12),
   usePhotoReferenceConsent: z.boolean().default(false),
   resemblanceMode: resemblanceModeSchema.default("strong"),
+  outputTypePreference: outputTypePreferenceSchema.default("reference ideas"),
   referenceFeedback: referenceFeedbackSchema.optional(),
   styleMemory: styleMemorySummarySchema.optional(),
   providerCostMetadata: providerCostMetadataSchema,
@@ -92,11 +103,47 @@ export const visibleStyleProfileSchema = z.object({
   avoidAdvice: z.array(z.string()),
 });
 
+export const photoAnalysisSchema = z.object({
+  frameNotes: z.string(),
+  proportions: z.string(),
+  currentOutfit: z.string(),
+  colorStyling: z.string(),
+  fitAdvice: z.array(z.string()),
+  avoid: z.array(z.string()),
+  recommendedPalette: z.array(z.string()),
+  recommendedSilhouettes: z.array(z.string()),
+  styleDirections: z.array(z.string()),
+  uncertaintyNotes: z.string(),
+});
+
 export const analysisSchema = z.object({
   visibleStyleProfile: visibleStyleProfileSchema,
   recommendedColorPalette: z.array(z.string()),
   recommendedSilhouettes: z.array(z.string()),
   confidenceNotes: z.string(),
+  dynamicPhotoAnalysis: photoAnalysisSchema.optional(),
+});
+
+export const styleIdeaSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  occasion: z.string(),
+  vibe: z.string(),
+  fit: z.string(),
+  palette: z.array(z.string()),
+  keyItems: z.array(z.string()),
+  footwear: z.array(z.string()),
+  accessories: z.array(z.string()),
+  whyItWorks: z.string(),
+  searchKeywords: z.array(z.string()),
+  generationBrief: z.string(),
+  avoidNotes: z.array(z.string()),
+});
+
+export const stylePlanSchema = z.object({
+  styleIdeas: z.array(styleIdeaSchema).min(4).max(6),
+  overallDirection: z.string(),
+  questionsOrUncertainty: z.array(z.string()).default([]),
 });
 
 export const styleCardSchema = z.object({
@@ -167,6 +214,23 @@ export const styleOptionsResponseSchema = z.object({
 export const referenceLooksRequestSchema = z.object({
   analysis: analysisSchema,
   preferences: preferencesSchema,
+  styleIdeas: z.array(styleIdeaSchema).optional(),
+});
+
+export const styleIdeasRequestSchema = z.object({
+  photoAnalysis: analysisSchema,
+  preferences: preferencesSchema,
+  styleMemory: styleMemorySummarySchema.optional(),
+  feedback: referenceFeedbackSchema.optional(),
+});
+
+export const refineStyleIdeasRequestSchema = z.object({
+  currentIdeas: z.array(styleIdeaSchema).min(1).max(12),
+  selectedLooks: z.array(referenceLookSchema).optional().default([]),
+  feedback: referenceFeedbackSchema.optional(),
+  refinementInstruction: z.string().min(2).max(300),
+  preferences: preferencesSchema,
+  photoAnalysis: analysisSchema,
 });
 
 export const referenceLooksResponseSchema = z.object({
@@ -234,7 +298,10 @@ export const styleFeedbackRequestSchema = z.object({
 
 export type Preferences = z.infer<typeof preferencesSchema>;
 export type ImageInput = z.infer<typeof imageInputSchema>;
+export type PhotoAnalysis = z.infer<typeof photoAnalysisSchema>;
 export type StyleAnalysis = z.infer<typeof analysisSchema>;
+export type StyleIdea = z.infer<typeof styleIdeaSchema>;
+export type StylePlan = z.infer<typeof stylePlanSchema>;
 export type StyleCardData = z.infer<typeof styleCardSchema>;
 export type InternalStylePlan = z.infer<typeof internalStylePlanSchema>;
 export type ReferenceLook = z.infer<typeof referenceLookSchema>;
@@ -251,6 +318,7 @@ export type SaveBoardRequest = z.infer<typeof saveBoardRequestSchema>;
 export type StyleFeedbackRequest = z.infer<typeof styleFeedbackRequestSchema>;
 export type AspectRatio = z.infer<typeof aspectRatioSchema>;
 export type ResemblanceMode = z.infer<typeof resemblanceModeSchema>;
+
 
 
 

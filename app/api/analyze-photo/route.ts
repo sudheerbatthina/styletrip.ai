@@ -7,9 +7,37 @@ import {
 } from "@/lib/ai/provider-router";
 import { analyzePhotoRequestSchema } from "@/lib/schemas";
 import { mockAnalysis } from "@/lib/mock-data";
+import type { Preferences, StyleAnalysis } from "@/lib/schemas";
 
 export const runtime = "nodejs";
 
+function buildMockDynamicAnalysis(preferences: Preferences): StyleAnalysis {
+  const occasion = preferences.occasionUseCase || preferences.tripType || "everyday styling";
+  const locationNote = preferences.tripLocation
+    ? ` for ${preferences.tripLocation}`
+    : "";
+
+  return {
+    ...mockAnalysis,
+    dynamicPhotoAnalysis: {
+      frameNotes: mockAnalysis.visibleStyleProfile.bodyFrame,
+      proportions: mockAnalysis.visibleStyleProfile.proportionNotes,
+      currentOutfit: mockAnalysis.visibleStyleProfile.currentOutfitNotes,
+      colorStyling: mockAnalysis.visibleStyleProfile.skinToneStylingNotes,
+      fitAdvice: mockAnalysis.visibleStyleProfile.fitAdvice,
+      avoid: mockAnalysis.visibleStyleProfile.avoidAdvice,
+      recommendedPalette: mockAnalysis.recommendedColorPalette,
+      recommendedSilhouettes: mockAnalysis.recommendedSilhouettes,
+      styleDirections: [
+        `${preferences.preferredFit} ${occasion}${locationNote}`,
+        preferences.styleVibe || "wearable visual variety",
+        preferences.outputTypePreference || "reference ideas",
+      ].filter(Boolean),
+      uncertaintyNotes:
+        "Mock analysis for local development. A real analyzer should describe uncertainty when the photo is unclear or not full body.",
+    },
+  };
+}
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
 }
@@ -25,7 +53,7 @@ export async function POST(request: Request) {
 
     const textProvider = getTextProviderId();
     if (isMockMode() || textProvider === "mock") {
-      return NextResponse.json(mockAnalysis);
+      return NextResponse.json(buildMockDynamicAnalysis(parsed.data.preferences));
     }
 
     if (!isPaidImageGenerationEnabled()) {

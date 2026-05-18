@@ -29,6 +29,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Textarea } from "@/components/ui/textarea";
 import { ToastProvider, useToast } from "@/components/ui/toast";
 import {
   emptyStyleMemory,
@@ -46,11 +47,13 @@ import type {
   ReferenceLooksResponse,
   SelectableStyle,
   StyleAnalysis,
+  StyleIdea,
+  StylePlan,
   StyleMemorySummary,
 } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 
-type Step = "upload" | "preferences" | "looks" | "generate" | "result";
+type Step = "upload" | "preferences" | "ideas" | "looks" | "generate" | "result";
 
 type GeneratedHistoryItem = {
   id: string;
@@ -70,12 +73,13 @@ type BoardBuilderSavePayload = {
 const steps: Array<{ id: Step; label: string }> = [
   { id: "upload", label: "Upload" },
   { id: "preferences", label: "Preferences" },
+  { id: "ideas", label: "Style Ideas" },
   { id: "looks", label: "Pick Looks" },
   { id: "generate", label: "Generate" },
   { id: "result", label: "Result" },
 ];
 
-const styleCountOptions = [4, 8, 12, 16];
+const styleCountOptions = [4, 6, 8, 12, 16];
 const emptyFeedback: ReferenceFeedback = {
   selected: [],
   deselected: [],
@@ -134,6 +138,9 @@ function StyleTripApp({
   const [preferences, setPreferences] = useState<Preferences>(defaultPreferences);
   const [analysis, setAnalysis] = useState<StyleAnalysis | null>(null);
   const [stylePlan, setStylePlan] = useState<InternalStylePlan | null>(null);
+  const [styleIdeaPlan, setStyleIdeaPlan] = useState<StylePlan | null>(null);
+  const [styleIdeas, setStyleIdeas] = useState<StyleIdea[]>([]);
+  const [refinementInstruction, setRefinementInstruction] = useState("");
   const [referenceLooks, setReferenceLooks] = useState<ReferenceLook[]>([]);
   const [visibleLookIds, setVisibleLookIds] = useState<string[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -316,6 +323,68 @@ function StyleTripApp({
     }
   }
 
+  async function handleGenerateStyleIdeas() {
+    if (!analysis) {
+      return;
+    }
+
+    setLoadingLabel("Creating style ideas");
+    try {
+      const result = await postJson<StylePlan>("/api/generate-style-ideas", {
+        photoAnalysis: analysis,
+        preferences: preferencesWithFeedback,
+        styleMemory,
+        feedback,
+      });
+      setStyleIdeaPlan(result);
+      setStyleIdeas(result.styleIdeas);
+      setReferenceLooks([]);
+      setVisibleLookIds([]);
+      setSelectedIds([]);
+      setStep("ideas");
+    } catch (error) {
+      toast({
+        title: "Style idea planning failed",
+        description: error instanceof Error ? error.message : "Try again.",
+      });
+    } finally {
+      setLoadingLabel(null);
+    }
+  }
+
+  async function handleRefineStyleIdeas(nextInstruction = refinementInstruction) {
+    if (!analysis || styleIdeas.length === 0 || !nextInstruction.trim()) {
+      return;
+    }
+
+    setLoadingLabel("Updating style ideas");
+    try {
+      const result = await postJson<StylePlan>("/api/refine-style-ideas", {
+        currentIdeas: styleIdeas,
+        selectedLooks,
+        feedback,
+        refinementInstruction: nextInstruction,
+        preferences: preferencesWithFeedback,
+        photoAnalysis: analysis,
+      });
+      setStyleIdeaPlan(result);
+      setStyleIdeas(result.styleIdeas);
+      setReferenceLooks([]);
+      setVisibleLookIds([]);
+      setSelectedIds([]);
+      toast({
+        title: "Style ideas updated",
+        description: "Reference looks will refresh from the updated direction.",
+      });
+    } catch (error) {
+      toast({
+        title: "Could not update style ideas",
+        description: error instanceof Error ? error.message : "Try again.",
+      });
+    } finally {
+      setLoadingLabel(null);
+    }
+  }
   async function handleDiscoverLooks() {
     if (!analysis) {
       return;
@@ -361,7 +430,7 @@ function StyleTripApp({
     try {
       const result = await postJson<ReferenceLooksResponse>(
         "/api/generate-reference-looks",
-        { analysis, preferences: preferencesWithFeedback },
+        { analysis, preferences: preferencesWithFeedback, styleIdeas },
       );
       setStylePlan(result.stylePlan);
       setReferenceLooks(result.referenceLooks);
@@ -674,9 +743,9 @@ function StyleTripApp({
               />
               <Card>
                 <CardHeader>
-                  <CardTitle>Trip and style questions</CardTitle>
+                  <CardTitle>Styling questions</CardTitle>
                   <CardDescription>
-                    Simple answers help us find reference looks that fit the trip.
+                    Simple answers help us plan looks for the occasion, setting, and style direction.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -696,19 +765,79 @@ function StyleTripApp({
             <StepHeader
               eyebrow="Step 2"
               title="Style profile"
-              description="Review the styling-only guidance, then discover visual looks for your trip. We avoid identity claims and sensitive guesses."
+              description="Review the styling-only guidance, then create dynamic style ideas. We avoid identity claims and sensitive guesses."
             />
             <div className="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
               {image ? <PhotoPreview image={image} /> : null}
-              <AnalysisPanel analysis={analysis} onContinue={handleDiscoverLooks} />
+              <AnalysisPanel analysis={analysis} onContinue={handleGenerateStyleIdeas} />
             </div>
           </div>
         ) : null}
 
-              {step === "looks" ? (
+        {step === "ideas" && styleIdeaPlan && analysis ? (
           <div className="space-y-6">
             <StepHeader
               eyebrow="Step 3"
+              title="Style ideas"
+              description="Structured directions based on your photo, preferences, context, and Style Memory. Refine them before finding visual references."
+            />
+            <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+              <div className="space-y-4">
+                {image ? <PhotoPreview image={image} /> : null}
+                <RefinementPanel
+                  value={refinementInstruction}
+                  onChange={setRefinementInstruction}
+                  onQuickPick={(value) => {
+                    setRefinementInstruction(value);
+                    void handleRefineStyleIdeas(value);
+                  }}
+                  onSubmit={() => void handleRefineStyleIdeas()}
+                  loading={loading}
+                />
+                <Card>
+                  <CardContent className="space-y-4 p-4">
+                    <p className="text-sm font-semibold">Overall direction</p>
+                    <p className="text-sm leading-6 text-muted-foreground">{styleIdeaPlan.overallDirection}</p>
+                    {styleIdeaPlan.questionsOrUncertainty.length > 0 ? (
+                      <div className="space-y-2">
+                        {styleIdeaPlan.questionsOrUncertainty.map((note) => <p key={note} className="text-xs leading-5 text-muted-foreground">{note}</p>)}
+                      </div>
+                    ) : null}
+                    <Button className="w-full" onClick={() => void handleDiscoverLooks()}>
+                      Find reference looks
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+              <StyleIdeasGrid
+                ideas={styleIdeas}
+                onUseDirection={(idea) => {
+                  const orderedIdeas = [
+                    idea,
+                    ...styleIdeas.filter((currentIdea) => currentIdea.id !== idea.id),
+                  ];
+                  setStyleIdeas(orderedIdeas);
+                  setStyleIdeaPlan((currentPlan) => currentPlan
+                    ? { ...currentPlan, styleIdeas: orderedIdeas.slice(0, 6) }
+                    : currentPlan);
+                  toast({
+                    title: "Style direction prioritized",
+                    description: "Reference looks will start from that direction.",
+                  });
+                }}
+                onNotMyStyle={(idea) => {
+                  setRefinementInstruction(`avoid ${idea.title}; show a different direction`);
+                  void handleRefineStyleIdeas(`avoid ${idea.title}; show a different direction`);
+                }}
+              />
+            </div>
+          </div>
+        ) : null}
+        {step === "looks" ? (
+          <div className="space-y-6">
+            <StepHeader
+              eyebrow="Step 4"
               title="Pick the looks you like"
               description="Reference looks are inspiration, not exact try-on. We only generate personalized images after you choose looks."
             />
@@ -725,7 +854,7 @@ function StyleTripApp({
                     </div>
                     <div className="space-y-2">
                       <p className="text-xs font-semibold text-muted-foreground">
-                        Looks to generate: 4 / 8 / 12 / 16
+                        Looks to generate: 4 / 6 / 8 / 12 / 16
                       </p>
                       <div className="grid grid-cols-4 gap-2">
                         {styleCountOptions.map((count) => (
@@ -789,7 +918,7 @@ function StyleTripApp({
         {step === "generate" ? (
           <div className="space-y-6">
             <StepHeader
-              eyebrow="Step 4"
+              eyebrow="Step 5"
               title="Generate personalized looks"
               description="Personalized image generation runs only after you select reference looks. The final board text and layout are rendered by the frontend."
             />
@@ -840,7 +969,7 @@ function StyleTripApp({
         {step === "result" && outfitImages.length > 0 && analysis ? (
           <div className="space-y-6">
             <StepHeader
-              eyebrow="Step 5"
+              eyebrow="Step 6"
               title="Result gallery"
               description="Download the current board, regenerate it with a quick direction, or edit the setup and create another version."
             />
@@ -1099,7 +1228,7 @@ function AnalysisPanel({
           {analysis.confidenceNotes}
         </p>
         <Button onClick={onContinue} size="lg">
-          Discover Reference Looks
+          Create Style Ideas
           <ArrowRight className="h-4 w-4" />
         </Button>
       </CardContent>
@@ -1144,6 +1273,143 @@ function AdviceList({
   );
 }
 
+const refinementChips = [
+  "more casual",
+  "less formal",
+  "more colorful",
+  "more streetwear",
+  "more luxury",
+  "more summer",
+  "more Vegas night",
+  "different footwear",
+];
+
+function RefinementPanel({
+  value,
+  onChange,
+  onQuickPick,
+  onSubmit,
+  loading,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onQuickPick: (value: string) => void;
+  onSubmit: () => void;
+  loading: boolean;
+}) {
+  return (
+    <Card>
+      <CardContent className="space-y-4 p-4">
+        <div>
+          <p className="text-sm font-semibold">Tell us what to change</p>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            Refinement keeps your photo context, preferences, and liked signals.
+          </p>
+        </div>
+        <Textarea
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder="Make these less formal, more colorful, or closer to look 2."
+        />
+        <div className="flex flex-wrap gap-2">
+          {refinementChips.map((chip) => (
+            <Button
+              key={chip}
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => onQuickPick(chip)}
+            >
+              {chip}
+            </Button>
+          ))}
+        </div>
+        <Button
+          type="button"
+          className="w-full"
+          disabled={loading || !value.trim()}
+          onClick={onSubmit}
+        >
+          Update style ideas
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function StyleIdeasGrid({
+  ideas,
+  onUseDirection,
+  onNotMyStyle,
+}: {
+  ideas: StyleIdea[];
+  onUseDirection: (idea: StyleIdea) => void;
+  onNotMyStyle: (idea: StyleIdea) => void;
+}) {
+  return (
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {ideas.map((idea) => (
+        <Card key={idea.id} className="overflow-hidden">
+          <CardContent className="space-y-4 p-4">
+            <div className="flex flex-wrap gap-2">
+              <Badge>{idea.occasion}</Badge>
+              <Badge className="bg-background text-foreground">{idea.fit}</Badge>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold">{idea.title}</h3>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">{idea.vibe}</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {idea.palette.slice(0, 5).map((color) => (
+                <Badge key={color} className="bg-background text-foreground">
+                  {color}
+                </Badge>
+              ))}
+            </div>
+            <p className="text-sm leading-6 text-muted-foreground">
+              {idea.keyItems.join(" / ")}
+            </p>
+            <p className="text-xs leading-5 text-muted-foreground">
+              Footwear: {idea.footwear.join(", ") || "flexible"}
+            </p>
+            <p className="text-xs leading-5 text-muted-foreground">
+              Accessories: {idea.accessories.join(", ") || "minimal"}
+            </p>
+            <div className="rounded-md border bg-muted/25 p-3">
+              <p className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
+                Why it works
+              </p>
+              <p className="mt-1 text-sm leading-6">{idea.whyItWorks}</p>
+            </div>
+            <details className="text-xs text-muted-foreground">
+              <summary className="cursor-pointer font-semibold text-foreground">
+                Search keywords
+              </summary>
+              <p className="mt-2 leading-5">{idea.searchKeywords.join(", ")}</p>
+            </details>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Button
+                type="button"
+                className="w-full"
+                onClick={() => onUseDirection(idea)}
+              >
+                Use this direction
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => onNotMyStyle(idea)}
+              >
+                Not my style
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
 function StylePlanDetails({
   stylePlan,
   analysis,
@@ -1253,6 +1519,10 @@ function HistoryGallery({ history }: { history: GeneratedHistoryItem[] }) {
     </section>
   );
 }
+
+
+
+
 
 
 

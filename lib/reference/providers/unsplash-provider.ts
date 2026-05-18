@@ -66,13 +66,17 @@ export async function getUnsplashReferenceLooks(input: ReferenceProviderInput): 
 
   const looks: ReferenceLook[] = [];
   const seenPhotoUrls = new Set<string>();
-  for (let index = 0; index < Math.min(input.target, mockStyleCards.length); index += 1) {
-    const style = mockStyleCards[index];
-    const occasion = input.preferences.occasionTypes[index % Math.max(input.preferences.occasionTypes.length, 1)] ?? style.bestFor;
+  for (let index = 0; index < input.target; index += 1) {
+    const style = mockStyleCards[index % mockStyleCards.length];
+    const styleIdea = input.styleIdeas?.[index];
+    const queryStyle = styleIdea ?? style;
+    const occasion = styleIdea?.occasion
+      ?? input.preferences.occasionTypes[index % Math.max(input.preferences.occasionTypes.length, 1)]
+      ?? style.bestFor;
     const queries = buildReferenceQueries({
       analysis: input.analysis,
       preferences: input.preferences,
-      style,
+      style: queryStyle,
       occasion,
     });
     const photo = await fetchFirstUnsplashPhoto(queries, preferencesHash, seenPhotoUrls);
@@ -86,26 +90,41 @@ export async function getUnsplashReferenceLooks(input: ReferenceProviderInput): 
     seenPhotoUrls.add(imageUrl);
 
     const photographer = photo.user?.name ?? "";
-    looks.push(
-      createBaseReferenceLook({
-        style,
-        index,
-        preferences: input.preferences,
-        imageUrl,
-        source: "stock",
-        sourceUrl: photo.links?.html ?? null,
-        sourceName: "Unsplash",
-        photographer,
-        photographerUrl: photo.user?.links?.html ?? null,
-        attributionText: photographer ? `Photo by ${photographer} on Unsplash` : "Photo from Unsplash",
-      }),
-    );
+    const baseLook = createBaseReferenceLook({
+      style,
+      index,
+      preferences: input.preferences,
+      imageUrl,
+      source: "stock",
+      sourceUrl: photo.links?.html ?? null,
+      sourceName: "Unsplash",
+      photographer,
+      photographerUrl: photo.user?.links?.html ?? null,
+      attributionText: photographer ? `Photo by ${photographer} on Unsplash` : "Photo from Unsplash",
+    });
+
+    looks.push(styleIdea ? applyStyleIdeaToStockLook(baseLook, styleIdea, index) : baseLook);
   }
 
   setReferenceCache(cacheKey, looks);
   return looks;
 }
 
+function applyStyleIdeaToStockLook(look: ReferenceLook, styleIdea: NonNullable<ReferenceProviderInput["styleIdeas"]>[number], index: number): ReferenceLook {
+  return {
+    ...look,
+    id: `unsplash-${index + 1}-${styleIdea.id}`,
+    title: styleIdea.title,
+    occasion: styleIdea.occasion,
+    fit: styleIdea.fit,
+    colorMood: styleIdea.palette.slice(0, 3).join(" / "),
+    items: styleIdea.keyItems.slice(0, 4),
+    whyItFits: styleIdea.whyItWorks,
+    promptHint: styleIdea.generationBrief,
+    whyThisMatches: [styleIdea.whyItWorks],
+    matchTags: [styleIdea.vibe, styleIdea.fit].filter(Boolean).slice(0, 2),
+  };
+}
 async function fetchFirstUnsplashPhoto(
   queries: string[],
   preferencesHash: string,

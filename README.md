@@ -1,6 +1,6 @@
 # StyleTrip AI
 
-StyleTrip AI is a saved-board web app for travel outfit inspiration. Users can sign up with email/password, create AI outfit boards from a full-body photo and trip preferences, save generated boards, revisit them from a dashboard, download them, and delete them.
+StyleTrip AI is a saved-board web app for dynamic personal styling inspiration. Users can sign up with email/password, upload a photo, add styling context, discover visual reference looks, generate mock fashion boards, save generated boards, revisit them from a dashboard, download them, and delete them.
 
 The app keeps mock-mode generation working, so UI development does not require OpenAI, paid image generation, or Supabase.
 
@@ -19,20 +19,33 @@ The app keeps mock-mode generation working, so UI development does not require O
 
 ## Board Generation Strategy
 
-The user-facing workflow is visual-first:
+The user-facing workflow is visual-first and context-aware:
 
-1. User uploads a photo and answers simple trip/style questions.
-2. The app analyzes styling cues and creates an internal style plan.
-3. The app shows visual reference look cards, not a wall of fashion labels.
-4. The user selects looks they like or marks a look as not their style.
-5. "Not my style" feedback downranks similar cards and can surface a replacement from the curated/reference pool.
-6. Only after look selection does the app generate personalized/mock outfit panels.
-7. The frontend renders the final fashion board with React/CSS and real text.
+1. User uploads a photo and answers simple styling questions.
+2. The app analyzes visible fashion-relevant cues only, avoiding identity claims and sensitive assumptions.
+3. The app creates 4-6 structured style ideas from photo context, occasion/use case, location if relevant, fit, colors, dislikes, comfort notes, Style Memory, and feedback.
+4. The user can refine those ideas with plain-language instructions such as "more casual", "less formal", "more colorful", or "different footwear".
+5. The app fetches visual reference looks from curated local assets by default, or Pexels/Unsplash only when explicitly configured.
+6. The user selects looks they like or marks a look as not their style.
+7. "Not my style" feedback downranks similar cards and can surface a replacement from the curated/reference pool.
+8. Only after look selection does the app generate personalized/mock outfit panels.
+9. The frontend renders the final fashion board with React/CSS and real text.
 
 The app does not rely on AI to generate the full final collage with readable text. Outfit titles, occasions, item lists, colors/fit, and labels are frontend text. This gives cleaner typography, better layout control, and reliable support for `1:1`, `4:5`, and `16:9`.
 
-For MVP, mock mode uses local curated SVG reference illustrations, deterministic match scoring, and mock outfit images. No paid APIs are called by default. Real curated/stock/catalog reference providers, AI scoring, provider routing, and paid personalized image providers are future integration points.
+For MVP, mock mode uses local curated SVG reference illustrations, deterministic match scoring, and mock outfit images. No paid APIs are called by default. Real curated/stock/catalog reference providers, AI scoring, provider routing, and paid personalized image providers are future integration points. Normal board generation remains mock-safe; OpenAI is only available inside the guarded one-image Provider Test Lab.
 
+
+## Dynamic Styling Pipeline
+
+The app now separates styling logic into prompt modules under `lib/prompts`:
+
+- `photo-analysis.ts` describes how a future analyzer should return styling-only JSON from an uploaded photo.
+- `style-planner.ts` creates structured `StyleIdea` objects from photo analysis, preferences, Style Memory, and feedback.
+- `refinement.ts` updates existing style ideas from follow-up instructions without restarting from scratch.
+- `personalized-generation.ts` builds future image-generation instructions from selected style ideas/reference looks, while normal board generation stays mock-safe.
+
+Mock mode returns deterministic photo analysis, style ideas, reference looks, and board images. The flow supports travel and Vegas when selected, but the prompts are not hardcoded to travel-only styling.
 ## Feedback and Ranking
 
 The Pick Looks step keeps a lightweight feedback state in `preferences.referenceFeedback`. It tracks selected, deselected, not-my-style, generated, saved, downloaded, and refresh-count signals.
@@ -330,7 +343,7 @@ Email/password auth is implemented for MVP. Google Sign-In is intentionally not 
 
 ## Prompt Lab Manual Workflow
 
-Prompt Lab is a developer/demo-only copy-paste workflow for testing strong ChatGPT-style fashion board prompts without adding any paid API dependency to the app. It appears in development, when `SHOW_PROVIDER_TEST_LAB=true`, or when `SHOW_PROMPT_LAB=true`.
+Prompt Lab is a developer/demo-only copy-paste workflow for testing strong ChatGPT-style fashion board prompts without adding any paid API dependency to the app. It uses the same dynamic styling context: uploaded photo availability, photo analysis summary, selected style ideas/reference looks, refinement notes, output preference, and board context. It appears in development, when `SHOW_PROVIDER_TEST_LAB=true`, or when `SHOW_PROMPT_LAB=true`.
 
 Prompt Lab can:
 
